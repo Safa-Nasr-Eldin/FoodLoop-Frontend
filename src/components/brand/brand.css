@@ -1,0 +1,60 @@
+/* ---- Mark / wordmark ---- */
+.fl-mark { width: 1.75rem; height: 1.75rem; flex-shrink: 0; }
+
+.fl-wordmark {
+  --mark-leaf: var(--forest-700);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--forest-950);
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 450;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.fl-wordmark em { font-style: italic; font-weight: 380; color: var(--mark-leaf); }
+.on-dark .fl-wordmark,
+.on-dark .fl-mark { --mark-leaf: var(--sage-500); }
+.on-dark .fl-wordmark { color: var(--color-on-dark); }
+
+/* ---- Botanical line art ---- */
+.botanical { color: var(--botanical-color, var(--forest-700)); overflow: visible; }
+.on-dark .botanical { --botanical-color: var(--sage-500); }
+
+.botanical-corner { width: min(320px, 60vw); height: auto; opacity: 0.7; }
+.botanical-corner--top-right { transform: scaleX(-1); }
+.botanical-corner--bottom-left { transform: scaleY(-1); }
+.botanical-corner--bottom-right { transform: scale(-1, -1); }
+
+.botanical-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.botanical-layer > * { position: absolute; }
+
+/* ---- Ambient orb ---- */
+.orb {
+  position: absolute;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    var(--orb-color) 0%,
+    color-mix(in srgb, var(--orb-color) 35%, transparent) 45%,
+    transparent 100%
+  );
+  opacity: var(--orb-opacity, 0.55);
+}
+.orb--sage { --orb-color: var(--sage-500); }
+.orb--mint { --orb-color: var(--mint-100); --orb-opacity: 0.8; }
+.orb--forest { --orb-color: var(--forest-700); --orb-opacity: 0.35; }
+.orb--drift { animation: ambient-drift var(--dur-ambient) var(--ease-in-out) infinite; will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .orb--drift { animation: none; }
+}

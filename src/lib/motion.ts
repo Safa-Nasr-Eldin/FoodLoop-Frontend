@@ -5,6 +5,7 @@ export const duration = {
   fast: 0.15,
   ui: 0.26,
   reveal: 0.45,
+  page: 0.28,
   ambient: 18,
 } as const
 
@@ -18,6 +19,7 @@ export const spring = {
   ui: { type: 'spring', stiffness: 420, damping: 38, mass: 0.9 },
   indicator: { type: 'spring', stiffness: 380, damping: 34 },
   magnetic: { type: 'spring', stiffness: 220, damping: 20, mass: 0.5 },
+  parallax: { stiffness: 90, damping: 22, mass: 0.6 },
 } as const satisfies Record<string, Transition>
 
 export const REVEAL_DISTANCE = 24

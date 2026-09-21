@@ -10,9 +10,11 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--header-height) + var(--space-4));
 }
+
+/* Anchor / focus targets clear the sticky header. (Not scroll-padding on <html>: that makes focusing
+   anything inside the sticky header scroll the page, since the header sits in the padded zone.) */
+[id] { scroll-margin-top: calc(var(--header-height) + var(--space-4)); }
 
 body {
   min-height: 100svh;

@@ -3,7 +3,6 @@ import { ArrowRight, ArrowUpRight, Bike, Check, HeartHandshake, Leaf, Plus, Rota
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { AmbientOrb, BotanicalBranch, BotanicalCorner, BotanicalDecoration } from '../../components/brand/Botanical'
 import { FoodLoopMark, FoodLoopWordmark } from '../../components/brand/FoodLoopMark'
-import { PageShell } from '../../components/layout/PageShell'
 import { MagneticButton } from '../../components/motion/MagneticButton'
 import { Reveal, RevealGroup, RevealItem } from '../../components/motion/Reveal'
 import { Button } from '../../components/ui/Button'
@@ -22,11 +21,11 @@ import {
 import './playground.css'
 
 /**
- * DEVELOPMENT-ONLY style manifesto for R1. Replaced by the Home page in R2.
+ * DEVELOPMENT-ONLY style manifesto (route: /dev/style-system). Not linked from any navigation.
  */
 export function StylePlayground() {
   return (
-    <PageShell>
+    <>
       <Hero />
       <PaletteSection />
       <TypeSection />
@@ -34,7 +33,7 @@ export function StylePlayground() {
       <SurfacesSection />
       <MotionSection />
       <BotanicalSection />
-    </PageShell>
+    </>
   )
 }
 
@@ -108,7 +107,7 @@ function Hero() {
           </Surface>
           <Surface tone="mint" className="pg-hero__stat">
             <span className="t-data pg-hero__stat-num">2.4t</span>
-            <span className="t-sm">rescued this week</span>
+            <span className="t-sm">rescued this week · design placeholder</span>
           </Surface>
         </RevealItem>
 

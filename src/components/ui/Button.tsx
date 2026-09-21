@@ -1,6 +1,8 @@
 import { LoaderCircle } from 'lucide-react'
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
+import { SectionLink } from '../layout/SectionLink'
 import './ui.css'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 'on-dark'
@@ -15,11 +17,16 @@ type BaseProps = {
   children: ReactNode
 }
 
-type AsButton = BaseProps & ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined }
-type AsLink = BaseProps & AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }
-export type ButtonProps = AsButton | AsLink
+type AnchorProps = AnchorHTMLAttributes<HTMLAnchorElement>
+type AsButton = BaseProps & ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined; to?: undefined; section?: undefined }
+type AsLink = BaseProps & AnchorProps & { href: string }
+/** In-app route. */
+type AsRoute = BaseProps & AnchorProps & { to: string }
+/** Section of the Home page (see SectionLink). */
+type AsSection = BaseProps & AnchorProps & { section: string }
+export type ButtonProps = AsButton | AsLink | AsRoute | AsSection
 
-/** Renders a <button>, or an <a> when `href` is given. Icons are decorative; label comes from children. */
+/** Renders a <button>, or a link when `href` / `to` / `section` is given. Icons are decorative; label comes from children. */
 export function Button(props: ButtonProps) {
   const { variant = 'primary', size = 'md', iconStart, iconEnd, loading = false, children, className, ...rest } = props
   const classes = cn('btn', `btn--${variant}`, `btn--${size}`, loading && 'is-loading', className)
@@ -35,9 +42,15 @@ export function Button(props: ButtonProps) {
     </>
   )
 
+  if ('to' in rest && rest.to !== undefined) {
+    return <Link className={classes} {...(rest as AnchorProps & { to: string })}>{content}</Link>
+  }
+  if ('section' in rest && rest.section !== undefined) {
+    return <SectionLink className={classes} {...(rest as AnchorProps & { section: string })}>{content}</SectionLink>
+  }
   if (rest.href !== undefined) {
     return (
-      <a className={classes} aria-busy={loading || undefined} {...(rest as AnchorHTMLAttributes<HTMLAnchorElement>)}>
+      <a className={classes} aria-busy={loading || undefined} {...(rest as AnchorProps)}>
         {content}
       </a>
     )

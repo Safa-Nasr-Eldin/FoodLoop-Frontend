@@ -1,24 +1,50 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUpRight } from 'lucide-react'
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
-import { PRIMARY_NAV } from '../../app/routes'
+import { ArrowRight, ArrowUpRight } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { EXPLORE_FOOD_PATH, PATHS, PRIMARY_NAV, SECTIONS, type NavItem } from '../../app/routes'
 import { cn } from '../../lib/cn'
 import { duration, ease, spring } from '../../lib/motion'
 import { BotanicalCorner, BotanicalDecoration } from '../brand/Botanical'
 import { FoodLoopWordmark } from '../brand/FoodLoopMark'
 import { Button } from '../ui/Button'
+import { NavItemLink } from './SectionLink'
 import './layout.css'
 
 const DESKTOP_QUERY = '(min-width: 1024px)'
 const FOCUSABLE = 'a[href], button:not([disabled])'
+// Desktop: Home-page links live in the centre pill; Login / Register become the action buttons.
+const CENTER_NAV = PRIMARY_NAV.filter((item) => item.to === PATHS.home)
 
 export function SiteHeader() {
-  const [active, setActive] = useState(PRIMARY_NAV[0].href)
+  const { pathname } = useLocation()
   const [hovered, setHovered] = useState<string | null>(null)
+  const [inLoop, setInLoop] = useState(false)
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(() => window.scrollY > 8)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
+
+  // Section awareness on Home: "How it works" reads as active while the loop section crosses a thin band
+  // just above the viewport's middle. One element, one band, so the state flips once per edge (no flicker).
+  // Presentation only: the URL is never touched while scrolling.
+  useEffect(() => {
+    if (pathname !== PATHS.home) return
+    const section = document.getElementById(SECTIONS.howItWorks)
+    if (!section) return
+    const io = new IntersectionObserver(([entry]) => setInLoop(entry.isIntersecting), {
+      rootMargin: '-40% 0px -55% 0px',
+    })
+    io.observe(section)
+    return () => io.disconnect()
+  }, [pathname])
+
+  const loopActive = pathname === PATHS.home && inLoop
+  /** Visual state: which nav item the reader is "at". */
+  const isActive = (item: NavItem) => (item.section ? loopActive : pathname === item.to && !loopActive)
+  /** Semantics: Home stays the current page; the section is the current location within it. */
+  const ariaCurrent = (item: NavItem) =>
+    item.section ? (loopActive ? 'location' : undefined) : pathname === item.to ? 'page' : undefined
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -59,50 +85,58 @@ export function SiteHeader() {
     }
   }, [open])
 
-  function navigate(e: MouseEvent<HTMLAnchorElement>, href: string) {
-    e.preventDefault() // R1: no router yet — placeholder links only track active state.
-    setActive(href)
-    setOpen(false)
-  }
-
-  const indicatorAt = hovered ?? active
+  const close = () => setOpen(false)
+  const indicatorAt = hovered ?? CENTER_NAV.find(isActive)?.label
 
   return (
     <header className={cn('site-header', scrolled && 'is-scrolled', open && 'is-open')}>
       <div className="container site-header__bar">
-        <a href="/" className="site-header__brand" aria-label="FoodLoop home" onClick={(e) => e.preventDefault()}>
+        <Link to={PATHS.home} className="site-header__brand" aria-label="FoodLoop home" onClick={close}>
           <FoodLoopWordmark />
-        </a>
+        </Link>
 
         <nav className="site-nav" aria-label="Primary">
           <ul role="list" className="site-nav__list" onMouseLeave={() => setHovered(null)}>
-            {PRIMARY_NAV.map((item) => (
-              <li key={item.href}>
-                <a
-                  href={item.href}
-                  className="site-nav__link"
-                  aria-current={active === item.href ? 'page' : undefined}
-                  onClick={(e) => navigate(e, item.href)}
-                  onMouseEnter={() => setHovered(item.href)}
-                  onFocus={() => setHovered(item.href)}
+            {CENTER_NAV.map((item) => (
+              <li key={item.label}>
+                <NavItemLink
+                  item={item}
+                  className={cn('site-nav__link', isActive(item) && 'is-active')}
+                  aria-current={ariaCurrent(item)}
+                  onMouseEnter={() => setHovered(item.label)}
+                  onFocus={() => setHovered(item.label)}
                   onBlur={() => setHovered(null)}
                 >
-                  {indicatorAt === item.href && (
+                  {indicatorAt === item.label && (
                     <motion.span layoutId="nav-indicator" className="site-nav__indicator" transition={spring.indicator} />
                   )}
                   <span className="site-nav__label">{item.label}</span>
-                </a>
+                </NavItemLink>
               </li>
             ))}
           </ul>
         </nav>
 
         <div className="site-header__actions">
-          <Button variant="ghost" size="sm" href="#" className="site-header__signin">
-            Sign in
+          <Button
+            variant="ghost"
+            size="sm"
+            to={PATHS.login}
+            className="site-header__signin"
+            aria-current={pathname === PATHS.login ? 'page' : undefined}
+          >
+            Login
           </Button>
-          <Button variant="primary" size="sm" href="#" iconEnd={<ArrowUpRight />} className="site-header__cta">
-            Donate surplus
+          <Button
+            variant="primary"
+            size="sm"
+            to={PATHS.register}
+            iconEnd={<ArrowUpRight />}
+            className="site-header__cta"
+            aria-current={pathname === PATHS.register ? 'page' : undefined}
+            onClick={close}
+          >
+            Register
           </Button>
           <button
             ref={toggleRef}
@@ -143,30 +177,27 @@ export function SiteHeader() {
               >
                 {PRIMARY_NAV.map((item, i) => (
                   <motion.li
-                    key={item.href}
+                    key={item.label}
                     variants={{
                       hidden: { opacity: 0, y: 14 },
                       visible: { opacity: 1, y: 0, transition: { duration: duration.ui, ease: ease.out } },
                     }}
                   >
-                    <a
-                      href={item.href}
-                      className="menu-sheet__link"
-                      aria-current={active === item.href ? 'page' : undefined}
-                      onClick={(e) => navigate(e, item.href)}
+                    <NavItemLink
+                      item={item}
+                      className={cn('menu-sheet__link', isActive(item) && 'is-active')}
+                      aria-current={ariaCurrent(item)}
+                      onClick={close}
                     >
                       <span className="menu-sheet__index">{String(i + 1).padStart(2, '0')}</span>
                       {item.label}
-                    </a>
+                    </NavItemLink>
                   </motion.li>
                 ))}
               </motion.ul>
               <div className="menu-sheet__actions">
-                <Button variant="on-dark" size="lg" href="#" iconEnd={<ArrowUpRight />}>
-                  Donate surplus
-                </Button>
-                <Button variant="outline" size="lg" href="#">
-                  Sign in
+                <Button variant="on-dark" size="lg" to={EXPLORE_FOOD_PATH} iconEnd={<ArrowRight />} onClick={close}>
+                  Explore available food
                 </Button>
               </div>
               <p className="menu-sheet__tagline t-label">Rescue · Redistribute · Repeat</p>

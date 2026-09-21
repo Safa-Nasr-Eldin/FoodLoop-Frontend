@@ -72,8 +72,8 @@
   transition: color var(--dur-fast) var(--ease-out);
 }
 .site-nav__link:hover,
-.site-nav__link[aria-current='page'] { color: var(--forest-950); }
-.site-nav__link[aria-current='page'] .site-nav__label::after {
+.site-nav__link.is-active { color: var(--forest-950); }
+.site-nav__link.is-active .site-nav__label::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -152,7 +152,7 @@
   line-height: 1.15;
   text-decoration: none;
 }
-.menu-sheet__link[aria-current='page'] { color: var(--sage-500); font-style: italic; }
+.menu-sheet__link.is-active { color: var(--sage-500); font-style: italic; }
 .menu-sheet__index { font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 600; color: var(--color-on-dark-muted); letter-spacing: 0.08em; }
 .menu-sheet__actions { display: grid; gap: var(--space-3); }
 @media (min-width: 576px) {

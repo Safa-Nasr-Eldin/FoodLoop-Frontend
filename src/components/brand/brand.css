@@ -58,3 +58,43 @@
 @media (prefers-reduced-motion: reduce) {
   .orb--drift { animation: none; }
 }
+
+/* ---- Media stand-in (photography not delivered yet) ---- */
+.media-art {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(55% 40% at 72% 18%, var(--art-light), transparent 70%),
+    radial-gradient(90% 60% at 50% 88%, var(--art-pool), transparent 70%),
+    linear-gradient(170deg, var(--art-top), var(--art-bottom));
+}
+.media-art--forest {
+  --art-light: rgb(218 241 222 / 0.34);
+  --art-pool: rgb(35 83 71 / 0.9);
+  --art-top: #1d4a3f;
+  --art-bottom: #06201f;
+  --art-line: var(--sage-500);
+  --art-sprig: var(--mint-100);
+}
+.media-art--umber {
+  --art-light: rgb(246 217 162 / 0.3);
+  --art-pool: rgb(92 66 38 / 0.75);
+  --art-top: #3a3024;
+  --art-bottom: #0e1c19;
+  --art-line: #cdb58c;
+  --art-sprig: #f1e3c6;
+}
+.media-art__field { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--art-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.media-art__field path { vector-effect: non-scaling-stroke; }
+.media-art__sprig {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 44%;
+  translate: -50% -50%;
+  rotate: -8deg;
+  --botanical-color: var(--art-sprig);
+  opacity: 0.7;
+}

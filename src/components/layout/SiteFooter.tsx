@@ -1,6 +1,7 @@
 import { FOOTER_NAV, LEGAL_NAV } from '../../app/routes'
 import { AmbientOrb, BotanicalBranch, BotanicalDecoration } from '../brand/Botanical'
 import { FoodLoopWordmark } from '../brand/FoodLoopMark'
+import { NavItemLink } from './SectionLink'
 import './layout.css'
 
 export function SiteFooter() {
@@ -30,10 +31,10 @@ export function SiteFooter() {
                 <h2 className="t-label site-footer__heading">{group.title}</h2>
                 <ul role="list">
                   {group.items.map((item) => (
-                    <li key={item.href + item.label}>
-                      <a href={item.href} className="site-footer__link">
+                    <li key={item.label}>
+                      <NavItemLink item={item} className="site-footer__link">
                         {item.label}
-                      </a>
+                      </NavItemLink>
                     </li>
                   ))}
                 </ul>
@@ -46,10 +47,10 @@ export function SiteFooter() {
           <p>© {new Date().getFullYear()} FoodLoop. Surplus, rerouted with care.</p>
           <ul role="list" className="site-footer__legal" aria-label="Legal">
             {LEGAL_NAV.map((item) => (
-              <li key={item.href}>
-                <a href={item.href} className="site-footer__link">
+              <li key={item.label}>
+                <NavItemLink item={item} className="site-footer__link">
                   {item.label}
-                </a>
+                </NavItemLink>
               </li>
             ))}
           </ul>

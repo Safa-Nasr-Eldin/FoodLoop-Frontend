@@ -93,3 +93,14 @@
 }
 .media-frame::before { background: linear-gradient(180deg, transparent 45%, rgb(5 31 32 / 0.55)); }
 .media-frame::after { background-image: var(--grain); opacity: 0.1; mix-blend-mode: soft-light; }
+
+/* Animated underline for inline text links: draws in from the left on hover / keyboard focus. */
+.link-underline {
+  color: var(--forest-700);
+  font-weight: 650;
+  text-decoration: none;
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 calc(100% - var(--underline-inset, 0px)) / 100% 1px;
+  transition: background-size var(--dur-ui) var(--ease-out);
+}
+.link-underline:hover,
+.link-underline:focus-visible { background-size: 0% 1px; background-position: 100% calc(100% - var(--underline-inset, 0px)); }

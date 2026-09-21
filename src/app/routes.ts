@@ -1,14 +1,29 @@
-// R2 information architecture. `section` targets an id on the Home page (see SectionLink).
+// Information architecture (R2 public site + R3 workspace). `section` targets an id on the Home page (see SectionLink).
 
 export const PATHS = {
   home: '/',
   login: '/login',
   register: '/register',
   styleSystem: '/dev/style-system',
+  marketplace: '/marketplace',
+  donations: '/donations',
+  newDonation: '/donations/new',
+  donation: '/donations/:id',
+  editDonation: '/donations/:id/edit',
+  organization: '/organization',
 } as const
 
-// ponytail: Marketplace ships in a later phase; food CTAs land on sign-in until /marketplace exists.
-export const EXPLORE_FOOD_PATH = PATHS.login
+export const donationPath = (id: string) => `/donations/${id}`
+export const editDonationPath = (id: string) => `/donations/${id}/edit`
+
+export const EXPLORE_FOOD_PATH = PATHS.marketplace
+
+/** Signed-in product navigation (no auth guard yet — pages are open during frontend development). */
+export const WORKSPACE_NAV: NavItem[] = [
+  { label: 'Marketplace', to: PATHS.marketplace },
+  { label: 'My donations', to: PATHS.donations },
+  { label: 'My organization', to: PATHS.organization },
+]
 
 export const SECTIONS = {
   howItWorks: 'how-it-works',

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 import { BotanicalBranch } from './Botanical'
 import './brand.css'
@@ -14,12 +15,15 @@ const RINGS = Array.from({ length: 10 }, (_, i) => {
   return `M${pts.join('L')}Z`
 })
 
+/** Brand tones plus one per food category (so listings never all look the same). */
+export type MediaTone = 'forest' | 'umber' | 'produce' | 'bakery' | 'prepared' | 'dairy' | 'pantry' | 'mixed'
+
 /**
  * Neutral stand-in for photography that has not been delivered yet: light, contour field and one
- * botanical sprig in the brand's line language. Deliberately graphic — it never imitates a photograph.
- * Decorative (aria-hidden); fills whatever frame it is placed in.
+ * botanical sprig (or a category glyph) in the brand's line language. Deliberately graphic — it never
+ * imitates a photograph. Decorative (aria-hidden); fills whatever frame it is placed in.
  */
-export function MediaArt({ tone = 'forest', className }: { tone?: 'forest' | 'umber'; className?: string }) {
+export function MediaArt({ tone = 'forest', glyph, className }: { tone?: MediaTone; glyph?: ReactNode; className?: string }) {
   return (
     <div className={cn('media-art', `media-art--${tone}`, className)} aria-hidden="true" data-photo-pending="">
       <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice" className="media-art__field">
@@ -27,7 +31,7 @@ export function MediaArt({ tone = 'forest', className }: { tone?: 'forest' | 'um
           <path key={i} d={d} strokeOpacity={0.5 - i * 0.04} />
         ))}
       </svg>
-      <BotanicalBranch className="media-art__sprig" draw={false} />
+      {glyph ? <div className="media-art__glyph">{glyph}</div> : <BotanicalBranch className="media-art__sprig" draw={false} />}
     </div>
   )
 }

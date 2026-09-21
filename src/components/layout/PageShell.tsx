@@ -1,24 +1,32 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { useEffect, useRef } from 'react'
-import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { Outlet, ScrollRestoration, useLocation, useMatches } from 'react-router-dom'
 import { BARE_PATHS, PAGE_TITLES } from '../../app/routes'
 import { duration, ease } from '../../lib/motion'
 import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
 import './layout.css'
 
+type ShellProps = {
+  /** Public site header by default; the workspace passes its product navigation. */
+  header?: ReactNode
+  footer?: ReactNode
+}
+
 /**
- * Root layout route: skip link, sticky header, <main> with the page transition, footer.
+ * Layout route: skip link, sticky header, <main> with the page transition, footer.
  * Transition is enter-only (no exit / wait), so navigation is never delayed.
+ * Title comes from the deepest route `handle.title`, falling back to PAGE_TITLES.
  */
-export function PageShell() {
+export function PageShell({ header = <SiteHeader />, footer = <SiteFooter /> }: ShellProps) {
   const { pathname, hash } = useLocation()
   const reduced = useReducedMotion()
   const firstRender = useRef(true)
+  const handleTitle = (useMatches().at(-1)?.handle as { title?: string } | undefined)?.title
 
   useEffect(() => {
-    document.title = PAGE_TITLES[pathname] ?? 'FoodLoop'
-  }, [pathname])
+    document.title = handleTitle ?? PAGE_TITLES[pathname] ?? 'FoodLoop'
+  }, [pathname, handleTitle])
 
   // After in-app navigation, move focus to <main> so screen readers start at the new page.
   // Hash targets are handled by SectionLink / ScrollRestoration instead.
@@ -35,7 +43,7 @@ export function PageShell() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <SiteHeader />
+      {header}
       <main id="main" tabIndex={-1} className="page-shell__main">
         <motion.div
           key={pathname}
@@ -47,7 +55,7 @@ export function PageShell() {
           <Outlet />
         </motion.div>
       </main>
-      {!BARE_PATHS.includes(pathname) && <SiteFooter />}
+      {!BARE_PATHS.includes(pathname) && footer}
       <ScrollRestoration />
     </div>
   )

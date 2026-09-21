@@ -12,6 +12,7 @@
 
 import heroRescueSrc from '../assets/photography/hero-rescue.jpg'
 import impactSurplusSrc from '../assets/photography/impact-surplus.jpg'
+import type { MediaTone } from '../components/brand/MediaArt'
 
 export type PhotoAsset = {
   /** Local asset URL. Undefined = not delivered yet (renders the MediaArt stand-in). */
@@ -22,7 +23,7 @@ export type PhotoAsset = {
   /** CSS object-position: keeps the subject inside every crop (arch, bleed, thumbnail). */
   focus: string
   /** Tone of the stand-in art while `src` is missing. */
-  art: 'forest' | 'umber'
+  art: MediaTone
 }
 
 export const PHOTOS = {

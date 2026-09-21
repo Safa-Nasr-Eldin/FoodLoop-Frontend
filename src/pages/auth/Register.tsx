@@ -8,7 +8,7 @@ import { RevealGroup, RevealItem } from '../../components/motion/Reveal'
 import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { AuthLayout } from './AuthLayout'
-import { Field } from './Field'
+import { Field } from '../../components/ui/Field'
 import { rules, useMockSubmit } from './useMockSubmit'
 
 const PARTICIPATION = [

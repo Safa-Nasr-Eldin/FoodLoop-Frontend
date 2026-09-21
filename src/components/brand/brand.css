@@ -98,3 +98,73 @@
   --botanical-color: var(--art-sprig);
   opacity: 0.7;
 }
+
+/* Category tones: each gets its own light, ground and contour placement so a grid of stand-ins never repeats. */
+.media-art--produce {
+  --art-light: rgb(214 236 160 / 0.32);
+  --art-pool: rgb(52 96 50 / 0.85);
+  --art-top: #2c5a3a;
+  --art-bottom: #0a2419;
+  --art-line: #a9cf8e;
+  --art-sprig: #e6f5cf;
+}
+.media-art--bakery {
+  --art-light: rgb(250 214 150 / 0.4);
+  --art-pool: rgb(120 76 34 / 0.75);
+  --art-top: #6b4a2a;
+  --art-bottom: #22160c;
+  --art-line: #e2bf88;
+  --art-sprig: #f8e6c4;
+}
+.media-art--prepared {
+  --art-light: rgb(248 180 130 / 0.34);
+  --art-pool: rgb(128 58 36 / 0.7);
+  --art-top: #6a3526;
+  --art-bottom: #1c1210;
+  --art-line: #e0a488;
+  --art-sprig: #f7d9c6;
+}
+.media-art--dairy {
+  --art-light: rgb(236 244 246 / 0.42);
+  --art-pool: rgb(52 88 98 / 0.7);
+  --art-top: #3d5f66;
+  --art-bottom: #0e1f24;
+  --art-line: #b7d2d6;
+  --art-sprig: #f1f7f7;
+}
+.media-art--pantry {
+  --art-light: rgb(232 206 120 / 0.3);
+  --art-pool: rgb(92 88 40 / 0.75);
+  --art-top: #54532c;
+  --art-bottom: #17170c;
+  --art-line: #cfc38a;
+  --art-sprig: #f1ecc8;
+}
+.media-art--mixed {
+  --art-light: rgb(218 241 222 / 0.3);
+  --art-pool: rgb(62 100 84 / 0.75);
+  --art-top: #3b5e52;
+  --art-bottom: #0c1d1a;
+  --art-line: var(--sage-500);
+  --art-sprig: var(--mint-100);
+}
+.media-art--bakery .media-art__field { transform: scaleX(-1); }
+.media-art--prepared .media-art__field { transform: translateY(-18%); }
+.media-art--dairy .media-art__field { transform: scale(-1, -1); }
+.media-art--pantry .media-art__field { transform: translateX(22%) scale(1.15); }
+.media-art--mixed .media-art__field { transform: translateX(-20%) scaleY(-1); }
+
+/* Category glyph: a large thin-line icon in the same stroke language as the botanicals. */
+.media-art__glyph {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34%;
+  max-width: 160px;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  color: var(--art-sprig);
+  opacity: 0.82;
+}
+.media-art__glyph svg { width: 100%; height: 100%; stroke-width: 1.25; }
+.media-art__glyph svg * { vector-effect: non-scaling-stroke; }

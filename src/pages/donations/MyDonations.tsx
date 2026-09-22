@@ -196,7 +196,7 @@ function Record({ donation: d }: { donation: Donation }) {
   return (
     <article className={cn('record', urgent && 'is-urgent', `record--${status.phase}`)} aria-labelledby={`rec-${d.id}`}>
       <div className="record__media">
-        <FoodMedia category={d.category} imageUrl={d.imageUrl} className="record__img" />
+        <FoodMedia visual={CATEGORY_META[d.category]} imageUrl={d.imageUrl} className="record__img" />
       </div>
       <div className="record__main">
         <h3 id={`rec-${d.id}`} className="record__title">

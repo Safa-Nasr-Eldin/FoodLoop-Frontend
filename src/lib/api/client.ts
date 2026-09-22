@@ -25,6 +25,18 @@ type Options = { body?: unknown; signal?: AbortSignal }
 
 let token: string | null = null
 let pendingToken: Promise<string> | null = null
+let sessionExpired: (() => void) | null = null
+
+/**
+ * One listener (the SessionProvider) hears about a protected request answered 401, i.e. the cookie is gone.
+ * Kept as a plain callback so this module stays usable outside React and never imports it. Returns an unsubscribe.
+ */
+export function onSessionExpired(listener: () => void) {
+  sessionExpired = listener
+  return () => {
+    if (sessionExpired === listener) sessionExpired = null
+  }
+}
 
 /** The token is bound to the current identity: discard it whenever the session changes (login, logout). */
 export function discardAntiforgeryToken() {
@@ -74,6 +86,12 @@ async function send<T>(method: Method, path: string, { body, signal }: Options =
     data = undefined
   }
   if (response.ok) return data as T
+  // /auth/* answer 401 as a normal outcome (wrong password, logout of a dead session) and handle it themselves.
+  // Anything else means the session ended: drop the identity-bound token and tell the listener. The request is not retried.
+  if (response.status === 401 && !path.startsWith('/auth/')) {
+    discardAntiforgeryToken()
+    sessionExpired?.()
+  }
 
   const problem = (data ?? {}) as { code?: unknown; title?: unknown; errors?: unknown }
   const code = typeof problem.code === 'string' ? problem.code : 'error'

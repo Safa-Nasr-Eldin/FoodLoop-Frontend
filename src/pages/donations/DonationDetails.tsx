@@ -14,9 +14,18 @@ import { getDonationEditCapability, getMockDonationById } from '../../data/mock/
 import { getCurrentMockOrganization } from '../../data/mock/organization'
 import { describeExpiry, expiryPhrase, formatAbsolute, formatAgo } from '../../lib/expiry'
 import { ease } from '../../lib/motion'
+import { useSession, workspaceRoleOf } from '../../lib/session/context'
+import { MarketplaceDonation } from '../marketplace/MarketplaceDonation'
 import './donations.css'
 
 export function DonationDetails() {
+  const { state } = useSession()
+  // Beneficiaries read the live marketplace listing. The donor's own view stays on prototype data until its slice.
+  const beneficiary = state.status === 'authenticated' && workspaceRoleOf(state.session) === 'beneficiary'
+  return beneficiary ? <MarketplaceDonation /> : <DonorDonationDetails />
+}
+
+function DonorDonationDetails() {
   const { id = '' } = useParams()
   const reduced = useReducedMotion()
   const [claimNote, setClaimNote] = useState(false)
@@ -49,7 +58,7 @@ export function DonationDetails() {
         <article className="detail__main" aria-labelledby="detail-title">
           <div className="detail__media-wrap">
             <MediaReveal className="detail__media">
-              <FoodMedia category={d.category} imageUrl={d.imageUrl} priority className="detail__img" />
+              <FoodMedia visual={category} imageUrl={d.imageUrl} priority className="detail__img" />
             </MediaReveal>
             <span className="detail__category">
               <CategoryIcon aria-hidden="true" />

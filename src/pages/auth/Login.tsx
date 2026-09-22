@@ -1,5 +1,5 @@
 import { AlertCircle, ArrowRight } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { PATHS } from '../../app/routes'
 import { BotanicalBranch, BotanicalCorner } from '../../components/brand/Botanical'
 import { FoodLoopMark } from '../../components/brand/FoodLoopMark'
@@ -9,12 +9,14 @@ import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { AuthLayout } from './AuthLayout'
 import { Field } from '../../components/ui/Field'
-import { homeOf, useSession } from '../../lib/session/context'
+import { returnTo, useSession, type LoginState } from '../../lib/session/context'
 import { apiErrors, rules, useAuthForm } from './useAuthForm'
 
 export function Login() {
   const { login } = useSession()
   const navigate = useNavigate()
+  const location = useLocation()
+  const expired = (location.state as LoginState | null)?.expired === true
   const { errors, submitting, onSubmit } = useAuthForm(
     (data) => ({
       email: rules.email(String(data.get('email') ?? '')),
@@ -24,7 +26,7 @@ export function Login() {
       try {
         // The role, and so the landing page, comes from the server's session, never from the form.
         const session = await login(String(data.get('email')).trim(), String(data.get('password')))
-        navigate(homeOf(session), { replace: true })
+        navigate(returnTo(location.state, session), { replace: true })
       } catch (error) {
         // One message for unknown email and wrong password: the API never says which.
         return apiErrors(error, {
@@ -95,6 +97,12 @@ export function Login() {
             </MagneticButton>
           </RevealItem>
           <div role="alert" className="auth-status-slot">
+            {expired && !errors.form && (
+              <p className="auth-status">
+                <AlertCircle aria-hidden="true" />
+                Your session ended. Sign in again to continue where you left off.
+              </p>
+            )}
             {errors.form && (
               <p className="auth-status auth-status--error">
                 <AlertCircle aria-hidden="true" />

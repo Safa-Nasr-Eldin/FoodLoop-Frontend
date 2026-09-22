@@ -1,10 +1,10 @@
 // Route guards for UX only: they decide what to render, not what a user may do. The API authorizes every request.
 import { ArrowRight } from 'lucide-react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { FoodLoopMark } from '../components/brand/FoodLoopMark'
 import { Button } from '../components/ui/Button'
 import { SectionEyebrow } from '../components/ui/SectionEyebrow'
-import { homeOf, useSession, workspaceRoleOf } from '../lib/session/context'
+import { homeOf, returnTo, useSession, workspaceRoleOf, type LoginState } from '../lib/session/context'
 import { PATHS, type WorkspaceRole } from './routes'
 
 export function SessionLoading() {
@@ -16,11 +16,15 @@ export function SessionLoading() {
   )
 }
 
-/** Workspace gate: anonymous visitors go to Login. */
+/** Workspace gate: anonymous visitors go to Login. An expired session remembers the page it was on. */
 export function RequireAuthenticated() {
   const { state } = useSession()
+  const location = useLocation()
   if (state.status === 'loading') return <SessionLoading />
-  if (state.status === 'anonymous') return <Navigate to={PATHS.login} replace />
+  if (state.status === 'anonymous') {
+    const login: LoginState | undefined = state.expired ? { from: location, expired: true } : undefined
+    return <Navigate to={PATHS.login} replace state={login} />
+  }
   return <Outlet />
 }
 
@@ -51,5 +55,6 @@ export function RequireRole({ roles }: { roles: WorkspaceRole[] }) {
 /** Login and Register: a signed-in visitor goes straight to their workspace. */
 export function RedirectIfAuthenticated() {
   const { state } = useSession()
-  return state.status === 'authenticated' ? <Navigate to={homeOf(state.session)} replace /> : <Outlet />
+  const location = useLocation()
+  return state.status === 'authenticated' ? <Navigate to={returnTo(location.state, state.session)} replace /> : <Outlet />
 }

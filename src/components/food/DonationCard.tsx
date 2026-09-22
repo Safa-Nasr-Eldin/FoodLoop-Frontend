@@ -5,15 +5,14 @@ import { donationPath } from '../../app/routes'
 import { cn } from '../../lib/cn'
 import { describeExpiry } from '../../lib/expiry'
 import { duration } from '../../lib/motion'
-import type { Donation } from '../../types/donation'
 import { StatusChip } from '../ui/StatusChip'
 import { ExpiryBadge } from './ExpiryBadge'
 import { FoodMedia } from './FoodMedia'
-import { CATEGORY_META, STATUS_META, formatQuantity, pickupAreaOf } from './presentation'
+import { STATUS_META, pickupAreaOf, type Listing } from './presentation'
 import './food.css'
 
 type DonationCardProps = {
-  donation: Donation
+  donation: Listing
   /** Wide editorial layout (media beside the copy) for the lead listing. */
   feature?: boolean
   /** Live-preview mode: no link, no hover affordance. */
@@ -29,7 +28,7 @@ type DonationCardProps = {
 export function DonationCard({ donation: d, feature, preview, className }: DonationCardProps) {
   // Preview drafts may not have an expiry / quantity yet.
   const expiry = d.expiresAt ? describeExpiry(d.expiresAt) : null
-  const category = CATEGORY_META[d.category]
+  const category = d.category
   const status = STATUS_META[d.status]
   const CategoryIcon = category.icon
 
@@ -39,7 +38,7 @@ export function DonationCard({ donation: d, feature, preview, className }: Donat
         <h3 className="food-card__title">{d.title}</h3>
         <p className="food-card__org">
           <Building2 aria-hidden="true" />
-          {d.organizationName}
+          {d.donorName}
         </p>
         {feature && d.description && <p className="food-card__lede">{d.description}</p>}
 
@@ -49,7 +48,7 @@ export function DonationCard({ donation: d, feature, preview, className }: Donat
               <Package aria-hidden="true" />
               Quantity
             </dt>
-            <dd className="t-data">{d.quantity > 0 ? formatQuantity(d) : '—'}</dd>
+            <dd className="t-data">{d.quantityLabel}</dd>
           </div>
           <div>
             <dt>
@@ -84,14 +83,14 @@ export function DonationCard({ donation: d, feature, preview, className }: Donat
         {/* Crossfades when the category changes (live preview); static everywhere else. */}
         <AnimatePresence initial={false}>
           <motion.div
-            key={d.imageUrl ?? d.category}
+            key={d.imageUrl ?? category.label}
             className="food-card__layer"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: duration.reveal }}
           >
-            <FoodMedia category={d.category} imageUrl={d.imageUrl} className="food-card__img" />
+            <FoodMedia visual={category} imageUrl={d.imageUrl} className="food-card__img" />
           </motion.div>
         </AnimatePresence>
         <span className="food-card__category">

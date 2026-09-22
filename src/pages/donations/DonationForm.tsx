@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { PATHS, donationPath } from '../../app/routes'
 import { DonationCard } from '../../components/food/DonationCard'
-import { CATEGORY_META } from '../../components/food/presentation'
+import { CATEGORY_META, formatQuantity, type Listing } from '../../components/food/presentation'
 import { MagneticButton } from '../../components/motion/MagneticButton'
 import { Button } from '../../components/ui/Button'
 import { Field, FieldFrame } from '../../components/ui/Field'
@@ -121,20 +121,16 @@ export function DonationForm(props: DonationFormProps) {
   }
 
   // Live preview: the same card the marketplace renders, fed by the form state.
-  const preview: Donation = {
+  const preview: Listing = {
     id: editing?.id ?? 'preview',
     title: values.title.trim() || 'Your donation title',
     description: values.description.trim(),
-    category: values.category ?? 'Mixed',
-    quantity: Number(values.quantity) > 0 ? Number(values.quantity) : 0,
-    unit: values.unit,
+    category: CATEGORY_META[values.category ?? 'Mixed'],
+    quantityLabel: Number(values.quantity) > 0 ? formatQuantity({ quantity: Number(values.quantity), unit: values.unit }) : '—',
     expiresAt: values.expiresAt && !Number.isNaN(Date.parse(values.expiresAt)) ? new Date(values.expiresAt).toISOString() : '',
     pickupAddress: values.pickupAddress.trim() || '—',
     status: editing?.status ?? 'Available',
-    organizationId: org.id,
-    organizationName: org.name,
-    createdAt: editing?.createdAt ?? new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    donorName: org.name,
     imageUrl: editing?.imageUrl,
   }
 

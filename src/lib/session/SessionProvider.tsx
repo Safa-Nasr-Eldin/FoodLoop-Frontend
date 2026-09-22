@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getSession, login as apiLogin, logout as apiLogout } from '../api/auth'
-import { discardAntiforgeryToken } from '../api/client'
+import { discardAntiforgeryToken, onSessionExpired } from '../api/client'
 import { SessionContext, type SessionContextValue, type SessionState } from './context'
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -15,6 +15,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     )
     return () => controller.abort()
   }, [])
+
+  // Simultaneous 401s coalesce here: only the first one finds an authenticated state; the rest return the same
+  // state object, so React skips the update. The route guard then sends the visitor to Login exactly once.
+  useEffect(
+    () => onSessionExpired(() => setState((s) => (s.status === 'authenticated' ? { status: 'anonymous', expired: true } : s))),
+    [],
+  )
 
   const value = useMemo<SessionContextValue>(
     () => ({

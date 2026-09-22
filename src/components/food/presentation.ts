@@ -1,6 +1,7 @@
 // UI presentation for donation enums: labels, tones, groupings. No lifecycle rules live here.
 import { Carrot, CookingPot, Milk, Package, ShoppingBasket, Wheat, type LucideIcon } from 'lucide-react'
 import type { CategoryMediaSlot } from '../../data/categoryMedia'
+import type { Category, MarketplaceItem, QuantityUnit } from '../../lib/api/marketplace'
 import type { Donation, DonationStatus, FoodCategory } from '../../types/donation'
 import type { StatusTone } from '../ui/StatusChip'
 
@@ -20,7 +21,10 @@ export const STATUS_META: Record<DonationStatus, { label: string; tone: StatusTo
   Failed: { label: 'Failed', tone: 'danger', phase: 'ended' },
 }
 
-export const CATEGORY_META: Record<FoodCategory, { label: string; slot: CategoryMediaSlot; icon: LucideIcon }> = {
+/** How a category looks: its label, media slot and icon. Presentation only — never the taxonomy. */
+export type CategoryVisual = { label: string; slot: CategoryMediaSlot; icon: LucideIcon }
+
+export const CATEGORY_META: Record<FoodCategory, CategoryVisual> = {
   Produce: { label: 'Produce', slot: 'produce', icon: Carrot },
   Bakery: { label: 'Bakery', slot: 'bakery', icon: Wheat },
   PreparedMeals: { label: 'Prepared meals', slot: 'preparedMeals', icon: CookingPot },
@@ -28,6 +32,58 @@ export const CATEGORY_META: Record<FoodCategory, { label: string; slot: Category
   Pantry: { label: 'Pantry', slot: 'pantry', icon: Package },
   Mixed: { label: 'Mixed', slot: 'mixed', icon: ShoppingBasket },
 }
+
+// Real categories are database records. Known names get a matching visual; any other (new) category gets the
+// generic one, so adding a category never needs a frontend change.
+const VISUAL_BY_NAME: Record<string, Omit<CategoryVisual, 'label'>> = {
+  'prepared meals': { slot: 'preparedMeals', icon: CookingPot },
+  produce: { slot: 'produce', icon: Carrot },
+  'packaged food': { slot: 'pantry', icon: Package },
+  bakery: { slot: 'bakery', icon: Wheat },
+  dairy: { slot: 'dairy', icon: Milk },
+}
+const GENERIC_VISUAL = { slot: 'mixed', icon: ShoppingBasket } as const
+
+export const categoryVisual = ({ name }: Pick<Category, 'name'>): CategoryVisual => ({
+  label: name,
+  ...(VISUAL_BY_NAME[name.trim().toLowerCase()] ?? GENERIC_VISUAL),
+})
+
+const UNIT_LABELS: Record<QuantityUnit, [one: string, many: string]> = {
+  Meals: ['meal', 'meals'],
+  Kilograms: ['kg', 'kg'],
+  Packages: ['package', 'packages'],
+}
+
+/** "12.5 kg", "1 meal", "3 packages" — from the backend's canonical unit name. */
+export const formatUnitQuantity = (quantity: number, unit: QuantityUnit) =>
+  `${quantity.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${UNIT_LABELS[unit]?.[quantity === 1 ? 0 : 1] ?? unit}`
+
+/** What a listing card shows. Built from API data (listingOf) or, for the donor form's preview, from the form. */
+export type Listing = {
+  id: string
+  title: string
+  description?: string
+  donorName: string
+  quantityLabel: string
+  pickupAddress: string
+  /** ISO timestamp; empty while a draft has none. */
+  expiresAt: string
+  status: DonationStatus
+  category: CategoryVisual
+  imageUrl?: string
+}
+
+export const listingOf = (d: MarketplaceItem): Listing => ({
+  id: d.id,
+  title: d.title,
+  donorName: d.donorName,
+  quantityLabel: formatUnitQuantity(d.quantity, d.unit),
+  pickupAddress: d.pickupAddress,
+  expiresAt: d.expiresAtUtc,
+  status: d.status,
+  category: categoryVisual(d.category),
+})
 
 /** Prototype stand-in for the API's permission check: only unclaimed listings can be edited. */
 export const isEditable = (d: Pick<Donation, 'status'>) => d.status === 'Draft' || d.status === 'Available'

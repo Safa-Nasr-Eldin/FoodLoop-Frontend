@@ -62,6 +62,41 @@ const router = createBrowserRouter([
         handle: { title: 'My organization — FoodLoop' },
         lazy: async () => ({ Component: (await import('../pages/organization/MyOrganization')).MyOrganization }),
       },
+      {
+        path: PATHS.claims,
+        handle: { title: 'My claims — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/claims/MyClaims')).MyClaims }),
+      },
+      {
+        path: PATHS.claim,
+        handle: { title: 'Claim details — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/claims/ClaimDetails')).ClaimDetails }),
+      },
+      {
+        path: PATHS.courierTasks,
+        handle: { title: 'My tasks — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/courier/MyTasks')).MyTasks }),
+      },
+      {
+        path: PATHS.courierTask,
+        handle: { title: 'Task details — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/courier/TaskDetails')).TaskDetails }),
+      },
+      {
+        path: PATHS.verifyHandover,
+        handle: { title: 'Verify handover — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/courier/VerifyHandover')).VerifyHandover }),
+      },
+      {
+        path: PATHS.handoverCodes,
+        handle: { title: 'Handover codes — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/handover/HandoverCodes')).HandoverCodes }),
+      },
+      {
+        path: PATHS.handoverCode,
+        handle: { title: 'Handover code — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/handover/HandoverPass')).HandoverPass }),
+      },
     ],
   },
 ])

@@ -54,6 +54,7 @@
   /* ---- Typography ---- */
   --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
 
   --text-hero: clamp(3.1rem, 1.35rem + 7.4vw, 8.75rem);
   --text-h1: clamp(2.5rem, 1.55rem + 4.2vw, 5.5rem);

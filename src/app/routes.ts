@@ -1,4 +1,4 @@
-// Information architecture (R2 public site + R3 workspace). `section` targets an id on the Home page (see SectionLink).
+// Information architecture (R2 public site + R3/R4 workspace). `section` targets an id on the Home page (see SectionLink).
 
 export const PATHS = {
   home: '/',
@@ -11,18 +11,53 @@ export const PATHS = {
   donation: '/donations/:id',
   editDonation: '/donations/:id/edit',
   organization: '/organization',
+  claims: '/claims',
+  claim: '/claims/:id',
+  courierTasks: '/courier/tasks',
+  courierTask: '/courier/tasks/:id',
+  verifyHandover: '/courier/tasks/:id/verify',
+  handoverCodes: '/handover/codes',
+  handoverCode: '/handover/codes/:id',
 } as const
 
 export const donationPath = (id: string) => `/donations/${id}`
 export const editDonationPath = (id: string) => `/donations/${id}/edit`
+export const claimPath = (id: string) => `/claims/${id}`
+export const courierTaskPath = (id: string) => `/courier/tasks/${id}`
+export const verifyHandoverPath = (id: string) => `/courier/tasks/${id}/verify`
+export const handoverCodePath = (id: string) => `/handover/codes/${id}`
 
 export const EXPLORE_FOOD_PATH = PATHS.marketplace
 
-/** Signed-in product navigation (no auth guard yet — pages are open during frontend development). */
-export const WORKSPACE_NAV: NavItem[] = [
-  { label: 'Marketplace', to: PATHS.marketplace },
-  { label: 'My donations', to: PATHS.donations },
-  { label: 'My organization', to: PATHS.organization },
+export type WorkspaceRole = 'donor' | 'beneficiary' | 'courier'
+
+/**
+ * Signed-in product navigation per sample role. No auth guard yet — every page is open during
+ * frontend development; the role only decides which nav and sample profile the shell shows.
+ */
+export const WORKSPACE_ROLES: { id: WorkspaceRole; label: string; home: string; nav: NavItem[] }[] = [
+  {
+    id: 'donor',
+    label: 'Donor',
+    home: PATHS.donations,
+    nav: [
+      { label: 'Marketplace', to: PATHS.marketplace },
+      { label: 'My donations', to: PATHS.donations },
+      { label: 'Handover codes', to: PATHS.handoverCodes },
+      { label: 'My organization', to: PATHS.organization },
+    ],
+  },
+  {
+    id: 'beneficiary',
+    label: 'Beneficiary',
+    home: PATHS.claims,
+    nav: [
+      { label: 'Marketplace', to: PATHS.marketplace },
+      { label: 'My claims', to: PATHS.claims },
+      { label: 'Handover codes', to: PATHS.handoverCodes },
+    ],
+  },
+  { id: 'courier', label: 'Courier', home: PATHS.courierTasks, nav: [{ label: 'My tasks', to: PATHS.courierTasks }] },
 ]
 
 export const SECTIONS = {

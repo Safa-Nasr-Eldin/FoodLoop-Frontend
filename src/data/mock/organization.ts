@@ -24,3 +24,6 @@ const ORGANIZATION: Organization = {
 export function getCurrentMockOrganization(): Organization {
   return ORGANIZATION
 }
+
+/** The organization the sample beneficiary belongs to (claims + delivery handover codes). */
+export const SAMPLE_BENEFICIARY = { id: 'org-eastpantry', name: 'Eastside Community Pantry' }

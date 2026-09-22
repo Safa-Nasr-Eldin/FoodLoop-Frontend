@@ -35,7 +35,8 @@
 .ws-nav { grid-area: nav; padding-block: var(--space-2) var(--space-3); }
 .ws-nav__list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 2px;
   padding: 4px;
   border-radius: var(--radius-pill);
@@ -96,6 +97,29 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Role accents: related, not separate systems. Beneficiary leans mint, courier leans deep forest. */
+.ws-header--beneficiary { background: radial-gradient(60% 140% at 12% 0%, rgb(142 182 155 / 0.32), transparent 70%), var(--forest-950); }
+.ws-header--courier { background: radial-gradient(60% 140% at 12% 0%, rgb(22 56 50 / 0.9), transparent 70%), #031617; }
+
+/* ================= Sample-role strip (dev affordance, scrolls away) ================= */
+.ws-roles { background: #031617; color: var(--color-on-dark-muted); font-size: var(--text-xs); }
+.ws-roles__inner { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+.ws-roles__label { font-weight: 600; letter-spacing: 0.06em; }
+.ws-roles__list { display: flex; }
+.ws-roles__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.7rem;
+  color: var(--color-on-dark-muted);
+  font-weight: 650;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+.ws-roles__link:hover { color: var(--color-on-dark); }
+.ws-roles__link[aria-current] { color: var(--mint-100); text-decoration: underline; text-underline-offset: 0.35em; }
+.ws-roles__link:focus-visible { outline-color: var(--color-focus-on-dark); }
 
 /* Two-row header on small screens: anchors / focus targets must clear it. */
 .page-shell:has(> .ws-header) { --header-height: 7.5rem; }
@@ -160,6 +184,7 @@
 }
 .ws-back svg { width: 18px; height: 18px; transition: transform var(--dur-ui) var(--ease-out); }
 .ws-back:hover { color: var(--forest-900); }
+.on-dark .ws-back:hover { color: var(--mint-100); }
 .ws-back:hover svg { transform: translateX(calc(var(--motion-nudge) * -1)); }
 
 /* Prototype / info messages (role="status" lives on the wrapper). */

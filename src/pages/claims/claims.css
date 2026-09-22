@@ -25,7 +25,7 @@
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  margin-left: 3px;
+  margin-left: 9px;
   border-radius: 50%;
   background: var(--tone-danger-bg);
   color: var(--tone-danger-fg);
@@ -254,6 +254,11 @@
 .pipe__stage { display: grid; justify-items: start; gap: 0.35rem; min-width: 0; }
 .pipe__dots { display: flex; flex-wrap: wrap-reverse; align-content: flex-end; gap: 4px; height: 2rem; }
 .pipe__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--mint-100); box-shadow: 0 0 12px rgb(218 241 222 / 0.5); }
+@media (min-width: 1024px) {
+  /* A touch more presence at desktop density, short of feeling like decoration. */
+  .pipe__dots { gap: 5px; height: 2.5rem; }
+  .pipe__dot { width: 13px; height: 13px; box-shadow: 0 0 16px rgb(218 241 222 / 0.5); }
+}
 .pipe__count { margin-top: 0.5rem; font-size: 1.25rem; color: rgb(238 246 239 / 0.4); }
 .pipe__stage.is-occupied .pipe__count { color: var(--mint-100); }
 .pipe__label { color: var(--color-on-dark-muted); font-size: var(--text-xs); line-height: 1.25; overflow-wrap: anywhere; }
@@ -387,7 +392,11 @@
   overflow: hidden;
 }
 @media (min-width: 1024px) {
-  .claim__stage { position: sticky; top: calc(var(--header-height) + var(--space-5)); min-height: 28rem; align-content: space-between; }
+  .claim__stage { position: sticky; top: calc(var(--header-height) + var(--space-5)); align-content: start; }
+}
+@media (min-width: 1200px) {
+  /* Content-sized rather than a fixed min-height, so the panel doesn't out-run the left column into dead space. */
+  .claim__stage { padding: clamp(2.5rem, 1.5rem + 2vw, 3.75rem); gap: var(--space-7); }
 }
 .claim__stage > :not(.botanical-layer) { position: relative; }
 .claim__contours { right: 0; bottom: 0; width: 320px; opacity: 0.18; }

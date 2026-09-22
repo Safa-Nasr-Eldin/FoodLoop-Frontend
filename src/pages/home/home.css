@@ -77,6 +77,10 @@
   .hero__ctas { width: 100%; }
   .hero__ctas > *,
   .hero__ctas .btn { width: 100%; }
+  /* Ops status is supplementary; dropping it brings the visual into the first fold without cramping copy. */
+  .hero__ops { display: none; }
+  .hero__grid { gap: clamp(1.5rem, 1rem + 2vw, 2.5rem); }
+  .hero { padding-block: 1rem calc(var(--section-space) * 0.7); }
 }
 
 /* Tablet: the headline spans the page like a cover line; copy and the visual share the row beneath. */
@@ -284,7 +288,8 @@
 }
 /* Tablet: labels read inward over the art so nothing leaves the column. */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .hero-visual { --ticket-w: 320px; max-width: none; }
+  /* Bleeds into the right gutter so the visual reads with the same authority as the oversized headline. */
+  .hero-visual { --ticket-w: 320px; max-width: none; width: calc(100% + min(var(--gutter), 2.25rem)); }
   .hero-ticket__meta { display: none; }
   .hero-tag[data-side] .hero-tag__label { left: auto; right: auto; }
   .hero-tag[data-side="left"] .hero-tag__label { left: 20px; }

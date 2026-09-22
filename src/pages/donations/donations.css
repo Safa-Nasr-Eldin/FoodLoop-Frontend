@@ -164,9 +164,12 @@
 .mine-total__alert svg { width: 16px; height: 16px; flex-shrink: 0; }
 
 .mine-stats-wrap { display: grid; }
-.mine-stats { display: grid; gap: var(--grid-gap); }
+.mine-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--grid-gap); }
+/* Two-up + a spanning third keeps three stacked cards from reading as one long scroll on mobile. */
+.mine-stat:nth-child(3):last-child { grid-column: 1 / -1; }
 @media (min-width: 576px) {
   .mine-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mine-stat:nth-child(3):last-child { grid-column: auto; }
 }
 .mine-stat {
   position: relative;
@@ -187,8 +190,7 @@
 .mine-stat dd { margin: 0; }
 .mine-stat dd:not(.mine-stat__note) {
   order: 0;
-  margin-top: auto;
-  padding-top: var(--space-5);
+  padding-top: var(--space-3);
   font-family: var(--font-display);
   font-size: clamp(3rem, 2.4rem + 2vw, 4.25rem);
   line-height: 0.9;
@@ -212,16 +214,17 @@
 
 .mine-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
   padding: 4px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--paper-deep);
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
-.mine-tabs::-webkit-scrollbar { display: none; }
+@media (min-width: 640px) {
+  .mine-tabs { flex-wrap: nowrap; border-radius: var(--radius-pill); }
+}
 .mine-tab {
   position: relative;
   flex-shrink: 0;

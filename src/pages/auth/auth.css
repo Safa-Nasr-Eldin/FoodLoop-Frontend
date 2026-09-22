@@ -101,7 +101,8 @@
     height: calc(100svh - var(--header-height) - var(--space-3));
     min-height: 560px;
   }
-  .auth-panel__content { justify-content: space-between; }
+  /* Content reads as one centred composition rather than three pieces stretched to fill a tall sticky panel. */
+  .auth-panel__content { justify-content: center; gap: var(--space-8); }
 }
 
 /* ---- Form panel ---- */

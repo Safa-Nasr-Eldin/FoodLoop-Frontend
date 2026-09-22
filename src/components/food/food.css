@@ -198,10 +198,10 @@
   .food-card--feature .food-card__foot { margin-top: 0; }
 }
 .food-card__layer { position: absolute; inset: 0; }
-.food-card__lede { display: none; }
+/* The lead card has no hover-reveal (that's mobile-hostile); its description stays visible at every width. */
+.food-card__lede { margin-top: var(--space-2); color: var(--ink-700); font-size: var(--text-sm); line-height: 1.5; }
 @media (min-width: 768px) {
   .food-card--feature .food-card__lede {
-    display: block;
     margin-top: var(--space-4);
     font-family: var(--font-display);
     font-size: var(--text-lead);

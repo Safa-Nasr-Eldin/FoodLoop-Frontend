@@ -18,7 +18,7 @@
     'nav nav';
   align-items: center;
   column-gap: var(--space-4);
-  padding-block: var(--space-2) 0;
+  padding-block: var(--space-1) 0;
 }
 
 .ws-header__brand { grid-area: brand; display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
@@ -32,7 +32,7 @@
 }
 
 /* Nav: a recessed track with a mint pill that glides to the current page. */
-.ws-nav { grid-area: nav; padding-block: var(--space-2) var(--space-3); }
+.ws-nav { grid-area: nav; padding-block: var(--space-1) var(--space-2); }
 .ws-nav__list {
   display: grid;
   grid-auto-flow: column;
@@ -123,7 +123,7 @@
 .ws-roles__link:focus-visible { outline-color: var(--color-focus-on-dark); }
 
 /* Two-row header on small screens: anchors / focus targets must clear it. */
-.page-shell:has(> .ws-header) { --header-height: 7.5rem; }
+.page-shell:has(> .ws-header) { --header-height: 6.5rem; }
 
 @media (min-width: 1024px) {
   .page-shell:has(> .ws-header) { --header-height: 4.75rem; }
@@ -158,6 +158,28 @@
 .ws-footer__inner p { display: flex; align-items: center; gap: 0.6rem; }
 .ws-footer__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tone-warning-fg); opacity: 0.7; flex-shrink: 0; }
 .ws-footer .link-underline { display: inline-block; padding-block: 0.7rem; --underline-inset: 0.62rem; }
+
+/* Full-bleed dark pages flow straight into a matching footer instead of a paper strip before it. */
+.page-shell__main:has(.courier-floor) + .ws-footer,
+.page-shell__main:has(.verify) + .ws-footer,
+.page-shell__main:has(.pass-scene) + .ws-footer {
+  margin-top: 0;
+  border-top: 1px solid var(--color-border-on-dark);
+  color: var(--color-on-dark-muted);
+}
+.page-shell__main:has(.courier-floor) + .ws-footer { background: #041a1b; }
+.page-shell__main:has(.verify) + .ws-footer { background: #031617; }
+.page-shell__main:has(.pass-scene) + .ws-footer { background: #05201f; }
+.page-shell__main:has(.courier-floor) + .ws-footer .ws-footer__inner,
+.page-shell__main:has(.verify) + .ws-footer .ws-footer__inner,
+.page-shell__main:has(.pass-scene) + .ws-footer .ws-footer__inner {
+  color: var(--color-on-dark-muted);
+}
+.page-shell__main:has(.courier-floor) + .ws-footer .link-underline,
+.page-shell__main:has(.verify) + .ws-footer .link-underline,
+.page-shell__main:has(.pass-scene) + .ws-footer .link-underline {
+  color: var(--color-on-dark);
+}
 
 /* ================= Shared workspace page primitives ================= */
 .ws-page { padding-block: clamp(2rem, 1rem + 3vw, 4rem) 0; }

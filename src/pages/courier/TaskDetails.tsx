@@ -2,15 +2,16 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CircleCheckBig, CircleDashed, ShieldCheck } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { PATHS, verifyHandoverPath } from '../../app/routes'
-import { CATEGORY_META, formatQuantity } from '../../components/food/presentation'
 import { CLAIM_STATUS_META, NEXT_STEP_META, refOf } from '../../components/operations/presentation'
 import { Button } from '../../components/ui/Button'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { getMockCourierTaskById } from '../../data/mock/courier'
+import { PageLoading, PageMessage } from '../../components/workspace/PageState'
+import { codeOf } from '../../lib/api/client'
+import { getCourierTask, type HandoverType } from '../../lib/api/courier'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
-import { describeExpiry, formatAbsolute, formatAgo } from '../../lib/expiry'
+import { describeExpiry, formatAbsolute } from '../../lib/expiry'
 import { ease, revealVariants, staggerVariants } from '../../lib/motion'
-import type { HandoverType } from '../../types/handover'
 import { Route } from './Route'
 import './courier.css'
 
@@ -19,14 +20,16 @@ const STAGES: HandoverType[] = ['Pickup', 'Delivery']
 export function TaskDetails() {
   const { id = '' } = useParams()
   const reduced = useReducedMotion()
-  const task = getMockCourierTaskById(id)
+  const load = useLoad(id, (signal) => getCourierTask(id, signal))
 
-  if (!task) return <MissingTask />
+  if (codeOf(load.error) === 'task.not_found') return <MissingTask />
+  if (load.error !== undefined && !load.data) return <PageMessage title="We couldn’t load this task." onRetry={load.reload} />
+  if (!load.data) return <PageLoading label="Loading task…" />
 
-  const t = task
+  const t = load.data
   const status = CLAIM_STATUS_META[t.status]
   const step = NEXT_STEP_META[t.nextStep]
-  const expiry = describeExpiry(t.expiresAt)
+  const expiry = describeExpiry(t.expiresAtUtc)
   const done = step.lane === 'done'
   const enter = (delay: number) => ({
     initial: reduced ? false : { opacity: 0, y: 20 },
@@ -43,14 +46,11 @@ export function TaskDetails() {
 
       <header className="task__head">
         <p className="task__kicker t-label">
-          Dispatch ticket <span className="t-data">{refOf(t.id)}</span> · assigned {formatAgo(t.assignedAt).toLowerCase()}
+          Dispatch ticket <span className="t-data">{refOf(t.claimId)}</span> · {t.donorName} → {t.beneficiaryName}
         </p>
         <h1 className="task__title">{t.donationTitle}</h1>
         <div className="task__status">
           <StatusChip tone={status.tone}>{status.label}</StatusChip>
-          <span className="task__meta">
-            {formatQuantity(t)} · {CATEGORY_META[t.category].label}
-          </span>
         </div>
       </header>
 
@@ -63,20 +63,10 @@ export function TaskDetails() {
           <div className="dispatch__tear task__tear" aria-hidden="true" />
           <dl className="task__facts">
             <div>
-              <dt>Quantity</dt>
-              <dd className="t-data">{formatQuantity(t)}</dd>
-            </div>
-            <div>
               <dt>Expiry</dt>
               <dd>
                 {!done && <span className={cn('task__expiry', expiry.urgency === 'critical' && 'is-urgent')}>{expiry.relative}</span>}
-                <time dateTime={t.expiresAt}>{expiry.absolute}</time>
-              </dd>
-            </div>
-            <div>
-              <dt>Assigned</dt>
-              <dd>
-                <time dateTime={t.assignedAt}>{formatAbsolute(t.assignedAt)}</time>
+                <time dateTime={t.expiresAtUtc}>{expiry.absolute}</time>
               </dd>
             </div>
           </dl>
@@ -95,8 +85,8 @@ export function TaskDetails() {
             {step.verify && step.action && (
               <Button
                 size="lg"
-                variant={t.nextStep === 'ProceedToBeneficiary' ? 'outline' : 'primary'}
-                to={verifyHandoverPath(t.id)}
+                variant="primary"
+                to={verifyHandoverPath(t.claimId)}
                 iconEnd={<ArrowRight />}
                 className="next-step__action"
               >
@@ -125,10 +115,10 @@ export function TaskDetails() {
                       {ev ? <ShieldCheck /> : <CircleDashed />}
                     </span>
                     <span className="evidence__text">
-                      <span className="evidence__label">{ev ? `${type} Evidence Verified` : `${type} evidence`}</span>
+                      <span className="evidence__label">{ev ? `${type} verified` : `${type} evidence`}</span>
                       {ev ? (
-                        <time className="evidence__state" dateTime={ev.verifiedAt}>
-                          {formatAbsolute(ev.verifiedAt)}
+                        <time className="evidence__state" dateTime={ev.verifiedAtUtc}>
+                          {formatAbsolute(ev.verifiedAtUtc)}
                         </time>
                       ) : (
                         <span className="evidence__state">Not yet recorded</span>

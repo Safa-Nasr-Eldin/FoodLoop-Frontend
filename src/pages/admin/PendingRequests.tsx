@@ -1,20 +1,19 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, Info, X } from 'lucide-react'
-import { useState } from 'react'
+import { AlertCircle, Check, CheckCircle2, X } from 'lucide-react'
 import { PATHS } from '../../app/routes'
 import { Button } from '../../components/ui/Button'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { getMockPendingRequests } from '../../data/mock/admin'
+import { PageLoading, PageMessage } from '../../components/workspace/PageState'
+import { changeOrganization, getPendingOrganizations, type PendingOrganization } from '../../lib/api/admin'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
 import { formatAgo } from '../../lib/expiry'
 import { ease } from '../../lib/motion'
-import type { PendingOrganizationRequest } from '../../types/admin'
 import { ORGANIZATION_TYPE_LABELS } from '../../types/organization'
 import { AdminIntro } from './kit'
-import { PROTOTYPE_NOTE, daysSince, formatDate, formatUtc, pad2 } from './presentation'
+import { daysSince, formatDate, formatUtc, pad2 } from './presentation'
+import { useAdminAction, type ActionNotice } from './useAdminAction'
 import './review.css'
-
-type Decision = 'Approve' | 'Reject'
 
 const waited = (iso: string) => {
   const d = daysSince(iso)
@@ -22,8 +21,20 @@ const waited = (iso: string) => {
 }
 
 export function PendingRequests() {
-  const requests = getMockPendingRequests()
-  const [decisions, setDecisions] = useState<Record<string, Decision>>({})
+  const load = useLoad('pending', getPendingOrganizations)
+  const action = useAdminAction(load.reload)
+
+  if (load.error !== undefined && !load.data) return <PageMessage title="We couldn’t load the review queue." onRetry={load.reload} />
+  if (!load.data) return <PageLoading label="Loading the review queue…" />
+  const requests = load.data
+
+  const decide = (r: PendingOrganization, approve: boolean) =>
+    action.run(
+      r.id,
+      r.name,
+      () => changeOrganization(r.id, approve ? 'approve' : 'reject'),
+      approve ? 'was approved and can now sign in.' : 'was rejected.',
+    )
 
   return (
     <div className="container ws-page adm">
@@ -44,13 +55,17 @@ export function PendingRequests() {
               </div>
               <div>
                 <dt>Oldest wait</dt>
-                <dd>{daysSince(requests[0].submittedAt)}d</dd>
+                <dd>{daysSince(requests[0].createdAtUtc)}d</dd>
               </div>
             </dl>
           )
         }
         meta={['Review queue', 'First in, first reviewed', `${requests.length} awaiting decision`]}
       />
+
+      <div className="adm-notice" role="status">
+        {action.notice && <Notice notice={action.notice} />}
+      </div>
 
       {requests.length === 0 ? (
         <div className="ws-empty queue-empty">
@@ -63,12 +78,13 @@ export function PendingRequests() {
       ) : (
         <ol role="list" className="queue" aria-label="Review queue, oldest first">
           {requests.map((r, i) => (
-            <li key={r.organizationId}>
+            <li key={r.id}>
               <ReviewCard
                 request={r}
                 position={i + 1}
-                decision={decisions[r.organizationId]}
-                onDecide={(d) => setDecisions((all) => ({ ...all, [r.organizationId]: d }))}
+                pending={action.pendingId === r.id}
+                busy={action.busy}
+                onDecide={(approve) => decide(r, approve)}
               />
             </li>
           ))}
@@ -78,17 +94,27 @@ export function PendingRequests() {
   )
 }
 
-type CardProps = {
-  request: PendingOrganizationRequest
-  position: number
-  decision?: Decision
-  onDecide: (d: Decision) => void
+function Notice({ notice }: { notice: ActionNotice }) {
+  return (
+    <p className="ws-notice">
+      {notice.ok ? <CheckCircle2 aria-hidden="true" /> : <AlertCircle aria-hidden="true" />}
+      {notice.text}
+    </p>
+  )
 }
 
-function ReviewCard({ request: r, position, decision, onDecide }: CardProps) {
+type CardProps = {
+  request: PendingOrganization
+  position: number
+  pending: boolean
+  busy: boolean
+  onDecide: (approve: boolean) => void
+}
+
+function ReviewCard({ request: r, position, pending, busy, onDecide }: CardProps) {
   const reduced = useReducedMotion()
   const next = position === 1
-  const titleId = `req-${r.organizationId}`
+  const titleId = `req-${r.id}`
 
   return (
     <motion.article
@@ -106,19 +132,17 @@ function ReviewCard({ request: r, position, decision, onDecide }: CardProps) {
         </span>
         <span className="review__wait">
           <span className="t-label">Waiting</span>
-          {waited(r.submittedAt)}
+          {waited(r.createdAtUtc)}
         </span>
       </div>
 
       <div className="review__body">
         <p className="review__kicker">
-          <StatusChip tone="warning">{r.status}</StatusChip>
-          <span>
-            {ORGANIZATION_TYPE_LABELS[r.type]} · {r.city}
-          </span>
+          <StatusChip tone="warning">Pending</StatusChip>
+          <span>{ORGANIZATION_TYPE_LABELS[r.type]}</span>
         </p>
         <h2 id={titleId} className="review__name">
-          {r.organizationName}
+          {r.name}
         </h2>
         <dl className="review__facts">
           <div>
@@ -128,32 +152,12 @@ function ReviewCard({ request: r, position, decision, onDecide }: CardProps) {
             </dd>
           </div>
           <div>
-            <dt>Registration</dt>
-            <dd>
-              <code>{r.registrationNumber}</code>
-            </dd>
-          </div>
-          <div>
-            <dt>Contact</dt>
-            <dd>{r.contactName}</dd>
-          </div>
-          <div>
-            <dt>Email</dt>
-            <dd className="review__email">{r.email}</dd>
-          </div>
-          <div>
             <dt>Submitted</dt>
             <dd>
-              <time dateTime={r.submittedAt}>
-                {formatDate(r.submittedAt)} <span className="review__ago">· {formatAgo(r.submittedAt)}</span>
+              <time dateTime={r.createdAtUtc}>
+                {formatDate(r.createdAtUtc)} <span className="review__ago">· {formatAgo(r.createdAtUtc)}</span>
               </time>
-              <code className="review__utc">{formatUtc(r.submittedAt)} UTC</code>
-            </dd>
-          </div>
-          <div>
-            <dt>Organization ID</dt>
-            <dd>
-              <code>{r.organizationId}</code>
+              <code className="review__utc">{formatUtc(r.createdAtUtc)} UTC</code>
             </dd>
           </div>
         </dl>
@@ -162,23 +166,25 @@ function ReviewCard({ request: r, position, decision, onDecide }: CardProps) {
       <div className={cn('review__decide', next && 'on-dark')}>
         <p className="review__decide-label t-label">Decision</p>
         <div className="review__buttons">
-          <Button variant={next ? 'on-dark' : 'primary'} size="sm" iconStart={<Check />} onClick={() => onDecide('Approve')}>
-            Approve<span className="visually-hidden"> {r.organizationName}</span>
+          <Button
+            variant={next ? 'on-dark' : 'primary'}
+            size="sm"
+            iconStart={<Check />}
+            loading={pending}
+            disabled={busy}
+            onClick={() => onDecide(true)}
+          >
+            Approve<span className="visually-hidden"> {r.name}</span>
           </Button>
-          <Button variant="outline" size="sm" iconStart={<X />} onClick={() => onDecide('Reject')}>
-            Reject<span className="visually-hidden"> {r.organizationName}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            iconStart={<X />}
+            disabled={busy}
+            onClick={() => window.confirm(`Reject ${r.name}? They will not be able to sign in.`) && onDecide(false)}
+          >
+            Reject<span className="visually-hidden"> {r.name}</span>
           </Button>
-        </div>
-        <div role="status" className="review__result">
-          {decision && (
-            <p className="ws-notice">
-              <Info aria-hidden="true" />
-              <span>
-                <strong>{PROTOTYPE_NOTE}</strong> {decision === 'Approve' ? 'Approval' : 'Rejection'} of {r.organizationName} was
-                not recorded; it stays pending.
-              </span>
-            </p>
-          )}
         </div>
       </div>
     </motion.article>

@@ -1,19 +1,17 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { Ban, BadgeCheck, Clock, FlaskConical, Globe, Lock, Mail, MapPin, Phone, ShieldAlert, UserRound, type LucideIcon } from 'lucide-react'
+import { Ban, BadgeCheck, Clock, Lock, MapPin, ShieldAlert, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { BotanicalBranch, BotanicalCorner, BotanicalDecoration } from '../../components/brand/Botanical'
-import { CATEGORY_META } from '../../components/food/presentation'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { StatusChip, type StatusTone } from '../../components/ui/StatusChip'
-import { getMockOrganizationDonations } from '../../data/mock/donations'
-import { getCurrentMockOrganization } from '../../data/mock/organization'
+import { PageLoading, PageMessage } from '../../components/workspace/PageState'
+import { codeOf } from '../../lib/api/client'
+import { getMyOrganization } from '../../lib/api/organization'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
 import { ease } from '../../lib/motion'
-import { FOOD_CATEGORIES } from '../../types/donation'
-import { ORGANIZATION_STATUSES, ORGANIZATION_TYPE_LABELS, type OrganizationStatus } from '../../types/organization'
+import { ORGANIZATION_TYPE_LABELS, type OrganizationStatus } from '../../types/organization'
 import './organization.css'
-
 
 type StatusView = { tone: StatusTone; icon: LucideIcon; title: string; body: string; steps: ('done' | 'current' | 'stopped' | 'todo')[] }
 
@@ -23,58 +21,54 @@ const STATUS_VIEW: Record<OrganizationStatus, StatusView> = {
     tone: 'success',
     icon: BadgeCheck,
     title: 'Verified and active',
-    body: 'Your organization is approved. You can list surplus and every listing shows your verified name.',
+    body: 'Your organization is approved and can use every FoodLoop workflow.',
     steps: ['done', 'done', 'done'],
   },
   Pending: {
     tone: 'warning',
     icon: Clock,
     title: 'Under review',
-    body: 'An administrator is checking your registration and licence. Listings go live once the review is complete.',
+    body: 'An administrator is checking your registration and licence.',
     steps: ['done', 'current', 'todo'],
   },
   Suspended: {
     tone: 'danger',
     icon: ShieldAlert,
     title: 'Temporarily suspended',
-    body: 'New listings are paused while an administrator looks into your account. Existing records stay visible to you.',
+    body: 'New activity is paused while an administrator looks into your account. Your existing records stay visible, read-only.',
     steps: ['done', 'done', 'stopped'],
   },
   Rejected: {
     tone: 'danger',
     icon: Ban,
     title: 'Application not approved',
-    body: 'Your application could not be verified. Contact FoodLoop support to understand what is needed to apply again.',
+    body: 'Your application could not be verified. Contact FoodLoop support to understand what is needed.',
     steps: ['done', 'stopped', 'todo'],
   },
 }
-const STEP_LABELS = ['Application received', 'Registration reviewed', 'Listing enabled']
+const STEP_LABELS = ['Application received', 'Registration reviewed', 'Workspace enabled']
 const STEP_WORD = { done: 'Done', current: 'In progress', stopped: 'Stopped', todo: 'Not yet' } as const
 
 const dateFmt = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
 
+/** GET /api/organization — the signed-in member's organization, read-only by design. */
 export function MyOrganization() {
   const reduced = useReducedMotion()
-  const base = getCurrentMockOrganization()
-  // Design review only: /organization?status=Pending previews the other presentations. Not a control.
-  const [params] = useSearchParams()
-  const previewStatus = params.get('status')
-  const isPreview = ORGANIZATION_STATUSES.includes(previewStatus as OrganizationStatus) && previewStatus !== base.status
-  const status = ORGANIZATION_STATUSES.find((s) => s === previewStatus) ?? base.status
-  const org = { ...base, status }
-  const view = STATUS_VIEW[status]
+  const load = useLoad('organization', getMyOrganization)
+
+  if (codeOf(load.error) === 'organization.not_found')
+    return <PageMessage title="No organization profile to show.">This account isn’t linked to an active organization.</PageMessage>
+  if (load.error !== undefined && !load.data) return <PageMessage title="We couldn’t load your organization." onRetry={load.reload} />
+  if (!load.data) return <PageLoading label="Loading your organization…" />
+
+  const org = load.data
+  const view = STATUS_VIEW[org.status]
   const StatusIcon = view.icon
   const initials = org.name
     .split(' ')
     .slice(0, 2)
     .map((w) => w[0])
     .join('')
-
-  // "What we share" is derived from the organization's own listings.
-  const donations = getMockOrganizationDonations(org.id)
-  const shares = FOOD_CATEGORIES.map((c) => ({ c, n: donations.filter((d) => d.category === c).length }))
-    .filter((x) => x.n > 0)
-    .sort((a, b) => b.n - a.n)
 
   const enter = (delay: number) => ({
     initial: reduced ? false : { opacity: 0, y: 16 },
@@ -84,13 +78,6 @@ export function MyOrganization() {
 
   return (
     <div className="container ws-page org">
-      {isPreview && (
-        <p className="ws-notice ws-notice--warning org-preview-notice" role="status">
-          <FlaskConical aria-hidden="true" />
-          Design preview — showing the <strong>{status}</strong> presentation via <code>?status=</code>. This is not
-          {base.name}’s actual account status.
-        </p>
-      )}
       <div className="org__grid">
         {/* ---- Identity ---- */}
         <motion.section className="org-id on-dark grain" aria-labelledby="org-name" {...enter(0)}>
@@ -106,12 +93,10 @@ export function MyOrganization() {
           <h1 id="org-name" className="org-id__name">
             {org.name}
           </h1>
-          <p className="org-id__type">
-            {ORGANIZATION_TYPE_LABELS[org.type]} · {org.city}
-          </p>
+          <p className="org-id__type">{ORGANIZATION_TYPE_LABELS[org.type]} organization</p>
           <div className="org-id__status">
             <StatusChip tone={view.tone} icon={<StatusIcon />}>
-              {status}
+              {org.status}
             </StatusChip>
           </div>
           <dl className="org-id__facts">
@@ -120,10 +105,8 @@ export function MyOrganization() {
               <dd>{dateFmt.format(new Date(org.createdAt))}</dd>
             </div>
             <div>
-              <dt>Verified</dt>
-              <dd>{org.verifiedAt && (status === 'Active' || status === 'Suspended')
-                  ? dateFmt.format(new Date(org.verifiedAt))
-                  : 'Not verified'}</dd>
+              <dt>Access</dt>
+              <dd>{org.isReadOnly ? 'Read-only' : 'Full'}</dd>
             </div>
           </dl>
         </motion.section>
@@ -165,54 +148,22 @@ export function MyOrganization() {
               </p>
             </header>
             <dl className="org-record">
-              <ReadOnly label="Food business licence" value={org.licenseNumber} mono />
-              <ReadOnly label="Company registration" value={org.registrationNumber} mono />
+              <ReadOnly label="Licence number" value={org.licenseNumber} mono />
               <ReadOnly label="Organization type" value={ORGANIZATION_TYPE_LABELS[org.type]} />
-              <ReadOnly label="Account status" value={status} />
+              <ReadOnly label="Account status" value={org.status} />
             </dl>
           </motion.section>
 
-          {/* ---- Contact & location ---- */}
+          {/* ---- Location ---- */}
           <motion.section className="org-block" aria-labelledby="contact-title" {...enter(0.2)}>
             <header className="org-block__head">
               <h2 id="contact-title" className="org-block__title">
-                Contact &amp; location
+                Location
               </h2>
             </header>
             <dl className="org-contact">
-              <Info icon={UserRound} label="Primary contact" value={org.contactName} />
-              <Info icon={Mail} label="Email" value={org.email} />
-              <Info icon={Phone} label="Phone" value={org.phone} />
-              <Info icon={MapPin} label="Address" value={`${org.address}, ${org.city}`} />
-              {org.website && <Info icon={Globe} label="Website" value={org.website} />}
+              <Info icon={MapPin} label="Address" value={org.address || '—'} />
             </dl>
-          </motion.section>
-
-          {/* ---- Profile ---- */}
-          <motion.section className="org-block org-profile" aria-labelledby="profile-title" {...enter(0.26)}>
-            <header className="org-block__head">
-              <h2 id="profile-title" className="org-block__title">
-                Profile
-              </h2>
-            </header>
-            <p className="org-profile__text">{org.description}</p>
-            {shares.length > 0 && (
-              <>
-                <h3 className="org-profile__sub t-label">What we share</h3>
-                <ul role="list" className="org-shares">
-                  {shares.map(({ c, n }) => {
-                    const Icon = CATEGORY_META[c].icon
-                    return (
-                      <li key={c}>
-                        <Icon aria-hidden="true" />
-                        {CATEGORY_META[c].label}
-                        <span className="t-data">{n}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </>
-            )}
           </motion.section>
         </div>
       </div>

@@ -1,4 +1,4 @@
-// Admin presentation: tones, labels, formatting, paging. Reads what the (mock) API says; decides nothing.
+// Admin presentation: tones, labels, formatting. Reads what the API says; decides nothing.
 import { useSearchParams } from 'react-router-dom'
 import type { StatusTone } from '../../components/ui/StatusChip'
 import type { OrganizationStatus } from '../../types/organization'
@@ -10,13 +10,11 @@ export const ORG_STATUS_TONE: Record<OrganizationStatus, StatusTone> = {
   Rejected: 'neutral',
 }
 
-/** Prototype stand-in for the API's permission flags: which admin action a row offers. */
+/** Which admin action a row offers (presentation only; the backend re-checks the status on every command). */
 export const ORG_ACTION: Partial<Record<OrganizationStatus, 'Suspend' | 'Reactivate'>> = {
   Active: 'Suspend',
   Suspended: 'Reactivate',
 }
-
-export const PROTOTYPE_NOTE = 'Prototype only — no request was sent.'
 
 const dateFmt = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
 export const formatDate = (iso: string) => dateFmt.format(new Date(iso))
@@ -31,13 +29,6 @@ export const formatUtcTime = (iso: string) => iso.slice(11, 16)
 export const daysSince = (iso: string, now = Date.now()) => Math.floor((now - new Date(iso).getTime()) / 86_400_000)
 
 export const pad2 = (n: number) => String(n).padStart(2, '0')
-
-/** Deterministic client-side paging. Out-of-range pages clamp to the nearest real page. */
-export function paginate<T>(items: T[], requested: number, size: number) {
-  const pages = Math.max(1, Math.ceil(items.length / size))
-  const page = Math.min(Math.max(1, requested || 1), pages)
-  return { page, pages, items: items.slice((page - 1) * size, page * size), from: (page - 1) * size + 1 }
-}
 
 /** Filters kept in the URL (as Marketplace does), so back/forward and reloads restore them. */
 export function useQueryParams() {

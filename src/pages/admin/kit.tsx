@@ -37,7 +37,7 @@ export function AdminIntro({ code, title, lead, aside, meta, className }: IntroP
           <li key={i}>{m}</li>
         ))}
         <li className="adm-console__end">
-          Snapshot <time dateTime={snapshot}>{formatUtcTime(snapshot)} UTC</time> · sample data
+          Snapshot <time dateTime={snapshot}>{formatUtcTime(snapshot)} UTC</time> · live
         </li>
       </ul>
     </header>
@@ -68,7 +68,10 @@ export function Pagination({ page, pages, label, onPage, targetId }: PagerProps)
         <span>Previous</span>
       </button>
       <ol role="list" className="adm-pager__list">
-        {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+        {/* First, last and two either side of the current page, so long real lists never overflow. */}
+        {Array.from({ length: pages }, (_, i) => i + 1)
+          .filter((n) => n === 1 || n === pages || Math.abs(n - page) <= 2)
+          .map((n) => (
           <li key={n}>
             <button
               type="button"

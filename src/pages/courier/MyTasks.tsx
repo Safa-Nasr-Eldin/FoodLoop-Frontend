@@ -2,21 +2,24 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { courierTaskPath } from '../../app/routes'
 import { FoodLoopMark } from '../../components/brand/FoodLoopMark'
-import { CATEGORY_META, formatQuantity } from '../../components/food/presentation'
 import { CLAIM_STATUS_META, NEXT_STEP_META, TASK_LANES, refOf } from '../../components/operations/presentation'
 import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { getMockCourierTasks } from '../../data/mock/courier'
+import { PageLoading, PageMessage } from '../../components/workspace/PageState'
+import { getCourierTasks, type CourierTask } from '../../lib/api/courier'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
-import { describeExpiry, formatAgo } from '../../lib/expiry'
+import { describeExpiry } from '../../lib/expiry'
 import { ease } from '../../lib/motion'
-import type { CourierTask } from '../../types/handover'
 import { Route } from './Route'
 import './courier.css'
 
 export function MyTasks() {
-  const tasks = getMockCourierTasks()
+  const load = useLoad('tasks', getCourierTasks)
+  if (load.error !== undefined && !load.data) return <PageMessage title="We couldn’t load your tasks." onRetry={load.reload} />
+  if (!load.data) return <PageLoading label="Loading your tasks…" />
+  const tasks = load.data
   const lanes = TASK_LANES.map((l) => ({ ...l, tasks: tasks.filter((t) => NEXT_STEP_META[t.nextStep].lane === l.id) }))
 
   return (
@@ -54,7 +57,7 @@ export function MyTasks() {
               {l.tasks.length > 0 ? (
                 <ol role="list" className="lane__list">
                   {l.tasks.map((t, i) => (
-                    <li key={t.id}>
+                    <li key={t.claimId}>
                       <DispatchTicket task={t} index={i} />
                     </li>
                   ))}
@@ -74,31 +77,28 @@ function DispatchTicket({ task: t, index }: { task: CourierTask; index: number }
   const reduced = useReducedMotion()
   const status = CLAIM_STATUS_META[t.status]
   const step = NEXT_STEP_META[t.nextStep]
-  const expiry = describeExpiry(t.expiresAt)
+  const expiry = describeExpiry(t.expiresAtUtc)
   const done = step.lane === 'done'
 
   return (
     <motion.article
       className={cn('dispatch', `dispatch--${step.lane}`)}
-      aria-labelledby={`task-${t.id}`}
+      aria-labelledby={`task-${t.claimId}`}
       initial={reduced ? false : { opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.55, ease: ease.out, delay: index * 0.08 }}
     >
       <header className="dispatch__stub">
-        <span className="dispatch__ref t-data">{refOf(t.id)}</span>
+        <span className="dispatch__ref t-data">{refOf(t.claimId)}</span>
         <StatusChip tone={status.tone}>{status.label}</StatusChip>
         <FoodLoopMark className="dispatch__mark" />
       </header>
 
       <div className="dispatch__body">
-        <h3 id={`task-${t.id}`} className="dispatch__title">
+        <h3 id={`task-${t.claimId}`} className="dispatch__title">
           {t.donationTitle}
         </h3>
-        <p className="dispatch__meta">
-          {formatQuantity(t)} · {CATEGORY_META[t.category].label}
-        </p>
         <Route task={t} />
       </div>
 
@@ -108,13 +108,7 @@ function DispatchTicket({ task: t, index }: { task: CourierTask; index: number }
         <div>
           <dt>Expiry</dt>
           <dd className={cn(!done && expiry.urgency === 'critical' && 'is-urgent')}>
-            <time dateTime={t.expiresAt}>{done ? expiry.absolute : expiry.relative}</time>
-          </dd>
-        </div>
-        <div>
-          <dt>Assigned</dt>
-          <dd>
-            <time dateTime={t.assignedAt}>{formatAgo(t.assignedAt)}</time>
+            <time dateTime={t.expiresAtUtc}>{done ? expiry.absolute : expiry.relative}</time>
           </dd>
         </div>
       </dl>
@@ -124,7 +118,7 @@ function DispatchTicket({ task: t, index }: { task: CourierTask; index: number }
           <span className="t-label">Next step</span>
           <strong>{step.label}</strong>
         </p>
-        <Button variant={done ? 'outline' : 'primary'} size="sm" to={courierTaskPath(t.id)} iconEnd={<ArrowRight />}>
+        <Button variant={done ? 'outline' : 'primary'} size="sm" to={courierTaskPath(t.claimId)} iconEnd={<ArrowRight />}>
           Open task<span className="visually-hidden">: {t.donationTitle}</span>
         </Button>
       </div>

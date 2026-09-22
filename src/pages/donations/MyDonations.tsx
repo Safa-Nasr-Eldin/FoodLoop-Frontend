@@ -4,18 +4,19 @@ import { useState } from 'react'
 import { PATHS, donationPath, editDonationPath } from '../../app/routes'
 import { BotanicalCorner, BotanicalDecoration } from '../../components/brand/Botanical'
 import { FoodMedia } from '../../components/food/FoodMedia'
-import { CATEGORY_META, STATUS_META, formatQuantity, pickupAreaOf, type StatusPhase } from '../../components/food/presentation'
+import { STATUS_META, categoryVisual, formatUnitQuantity, pickupAreaOf, type StatusPhase } from '../../components/food/presentation'
 import { MagneticButton } from '../../components/motion/MagneticButton'
 import { RevealGroup, RevealItem } from '../../components/motion/Reveal'
 import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { getDonationEditCapability, getMockOrganizationDonations } from '../../data/mock/donations'
-import { getCurrentMockOrganization } from '../../data/mock/organization'
+import { PageLoading, PageMessage } from '../../components/workspace/PageState'
+import { getMyDonations, type DonationItem } from '../../lib/api/donations'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
 import { describeExpiry, formatAgo } from '../../lib/expiry'
 import { duration, ease, spring } from '../../lib/motion'
-import type { Donation } from '../../types/donation'
+import { useSession } from '../../lib/session/context'
 import './donations.css'
 
 type View = 'all' | 'open' | 'progress' | 'done' | 'other'
@@ -37,17 +38,23 @@ const PHASES: { phase: StatusPhase; label: string }[] = [
   { phase: 'ended', label: 'Ended' },
 ]
 
-const phaseOf = (d: Donation) => STATUS_META[d.status].phase
+const phaseOf = (d: DonationItem) => STATUS_META[d.status].phase
 
 export function MyDonations() {
   const reduced = useReducedMotion()
-  const org = getCurrentMockOrganization()
-  const donations = getMockOrganizationDonations(org.id)
+  const { state } = useSession()
+  const orgName = state.status === 'authenticated' ? state.session.organization?.name : undefined
+  const load = useLoad('mine', getMyDonations)
   const [view, setView] = useState<View>('all')
+
+  if (load.error !== undefined && !load.data)
+    return <PageMessage title="We couldn’t load your donations." onRetry={load.reload}>Check your connection and try again.</PageMessage>
+  if (!load.data) return <PageLoading label="Loading your donations…" />
+  const donations = load.data
 
   const count = (phase: StatusPhase) => donations.filter((d) => phaseOf(d) === phase).length
   const closingSoon = donations.filter(
-    (d) => phaseOf(d) === 'open' && describeExpiry(d.expiresAt).urgency === 'critical',
+    (d) => phaseOf(d) === 'open' && describeExpiry(d.expiresAtUtc).urgency === 'critical',
   ).length
   const inView = (v: View) => donations.filter((d) => VIEWS.find((x) => x.id === v)!.phases.includes(phaseOf(d)))
   const visible = inView(view)
@@ -60,7 +67,7 @@ export function MyDonations() {
           My <em>donations</em>
         </h1>
         <p className="t-lead ws-intro__lead">
-          Everything {org.name} has shared — from first draft to the last delivery.
+          Everything {orgName ?? 'your organization'} has shared — from first draft to the last delivery.
         </p>
         <div className="ws-intro__actions">
           <MagneticButton>
@@ -155,7 +162,7 @@ export function MyDonations() {
           <span>Status</span>
           <span>Quantity</span>
           <span>Expires</span>
-          <span>Updated</span>
+          <span>Prepared</span>
           <span />
         </div>
 
@@ -179,7 +186,11 @@ export function MyDonations() {
         ) : (
           <div className="ws-empty">
             <h3>No listings here yet.</h3>
-            <p>Nothing in this view right now. Listings move between views as they are claimed and delivered.</p>
+            <p>
+              {donations.length === 0
+                ? 'Create your first donation — it starts as a draft you can review before publishing.'
+                : 'Nothing in this view right now. Listings move between views as they are claimed and delivered.'}
+            </p>
           </div>
         )}
       </section>
@@ -187,23 +198,24 @@ export function MyDonations() {
   )
 }
 
-function Record({ donation: d }: { donation: Donation }) {
+function Record({ donation: d }: { donation: DonationItem }) {
   const status = STATUS_META[d.status]
-  const expiry = describeExpiry(d.expiresAt)
+  const category = categoryVisual(d.category)
+  const expiry = describeExpiry(d.expiresAtUtc)
   const live = status.phase !== 'done' && status.phase !== 'ended'
   const urgent = status.phase === 'open' && expiry.urgency === 'critical'
 
   return (
     <article className={cn('record', urgent && 'is-urgent', `record--${status.phase}`)} aria-labelledby={`rec-${d.id}`}>
       <div className="record__media">
-        <FoodMedia visual={CATEGORY_META[d.category]} imageUrl={d.imageUrl} className="record__img" />
+        <FoodMedia visual={category} className="record__img" />
       </div>
       <div className="record__main">
         <h3 id={`rec-${d.id}`} className="record__title">
           {d.title}
         </h3>
         <p className="record__meta">
-          {CATEGORY_META[d.category].label} · {pickupAreaOf(d)}
+          {category.label} · {pickupAreaOf(d)}
         </p>
       </div>
       <div className="record__status">
@@ -214,7 +226,7 @@ function Record({ donation: d }: { donation: Donation }) {
       <dl className="record__facts">
         <div>
           <dt>Quantity</dt>
-          <dd className="t-data">{formatQuantity(d)}</dd>
+          <dd className="t-data">{formatUnitQuantity(d.quantity, d.unit)}</dd>
         </div>
         <div>
           <dt>Expires</dt>
@@ -225,15 +237,15 @@ function Record({ donation: d }: { donation: Donation }) {
                 {expiry.relative}
               </span>
             )}
-            <time dateTime={d.expiresAt} className="record__abs">
+            <time dateTime={d.expiresAtUtc} className="record__abs">
               {expiry.absolute}
             </time>
           </dd>
         </div>
         <div>
-          <dt>Updated</dt>
+          <dt>Prepared</dt>
           <dd>
-            <time dateTime={d.updatedAt}>{formatAgo(d.updatedAt)}</time>
+            <time dateTime={d.preparedAtUtc}>{formatAgo(d.preparedAtUtc)}</time>
           </dd>
         </div>
       </dl>
@@ -241,7 +253,7 @@ function Record({ donation: d }: { donation: Donation }) {
         <Button variant="outline" size="sm" to={donationPath(d.id)}>
           View<span className="visually-hidden"> {d.title}</span>
         </Button>
-        {getDonationEditCapability(d).canEdit && (
+        {d.canEdit && (
           <Button variant="ghost" size="sm" to={editDonationPath(d.id)} iconStart={<Pencil />}>
             Edit<span className="visually-hidden"> {d.title}</span>
           </Button>

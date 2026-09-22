@@ -1,52 +1,70 @@
 import { motion } from 'framer-motion'
-import { Info, Search, X } from 'lucide-react'
-import { useState } from 'react'
+import { AlertCircle, CheckCircle2, X } from 'lucide-react'
 import { PATHS } from '../../app/routes'
 import { Button } from '../../components/ui/Button'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { getMockOrganizations } from '../../data/mock/admin'
+import { PageMessage } from '../../components/workspace/PageState'
+import { changeOrganization, getOrganizations, type AdminOrganization } from '../../lib/api/admin'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
 import { spring } from '../../lib/motion'
 import { useMediaQuery } from '../../lib/useMediaQuery'
-import type { AdminOrganization } from '../../types/admin'
 import { ORGANIZATION_STATUSES, ORGANIZATION_TYPE_LABELS, type OrganizationStatus } from '../../types/organization'
 import { AdminIntro, Pagination } from './kit'
-import { ORG_ACTION, ORG_STATUS_TONE, formatDate, paginate, useQueryParams } from './presentation'
+import { ORG_ACTION, ORG_STATUS_TONE, formatDate, useQueryParams } from './presentation'
+import { useAdminAction } from './useAdminAction'
 
-const PAGE_SIZE = 8
+/** Backend page size for GET /api/admin/organizations. */
+const PAGE_SIZE = 20
 const isStatus = (v: string | null): v is OrganizationStatus => ORGANIZATION_STATUSES.includes(v as OrganizationStatus)
 
-type Notice = { id: string; text: string }
+const loadCounts = (signal: AbortSignal) =>
+  Promise.all(ORGANIZATION_STATUSES.map((s) => getOrganizations(s, 1, signal).then((r) => [s, r.totalCount] as const))).then(
+    (rows) => Object.fromEntries(rows) as Record<OrganizationStatus, number>,
+  )
 
 export function ManageOrganizations() {
-  const organizations = getMockOrganizations()
   const desktop = useMediaQuery('(min-width: 1024px)')
   const [params, update] = useQueryParams()
-  const [notice, setNotice] = useState<Notice | null>(null)
-
   const rawStatus = params.get('status')
-  const status = isStatus(rawStatus) ? rawStatus : null
-  const query = params.get('q') ?? ''
-  const needle = query.trim().toLowerCase()
+  const status = isStatus(rawStatus) ? rawStatus : undefined
+  const requested = Math.max(1, Number(params.get('page')) || 1)
+  const list = useLoad(`${status ?? 'all'}:${requested}`, (signal) => getOrganizations(status, requested, signal))
+  const counts = useLoad('counts', loadCounts)
+  const action = useAdminAction(() => {
+    list.reload()
+    counts.reload()
+  })
 
-  const filtered = organizations.filter(
-    (o) => (!status || o.status === status) && (!needle || o.name.toLowerCase().includes(needle)),
-  )
-  const { page, pages, items, from } = paginate(filtered, Number(params.get('page')), PAGE_SIZE)
-  const count = (s: OrganizationStatus | null) => (s ? organizations.filter((o) => o.status === s).length : organizations.length)
+  if (list.error !== undefined && !list.data) return <PageMessage title="We couldn’t load the registry." onRetry={list.reload} />
 
-  // Prototype: acknowledge the action locally. Status never changes.
-  function act(o: AdminOrganization, action: 'Suspend' | 'Reactivate') {
-    const done = action === 'Suspend' ? 'suspended' : 'reactivated'
-    setNotice({ id: o.id, text: `Prototype only — ${o.name} was not ${done}. No request was sent.` })
+  const result = list.data
+  const items = result?.items ?? []
+  const page = result?.page ?? requested
+  const total = result?.totalCount ?? 0
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const from = (page - 1) * PAGE_SIZE + 1
+  const count = (s?: OrganizationStatus) =>
+    counts.data ? (s ? counts.data[s] : Object.values(counts.data).reduce((a, b) => a + b, 0)) : undefined
+
+  function act(o: AdminOrganization, kind: 'Suspend' | 'Reactivate') {
+    action.run(o.id, o.name, () => changeOrganization(o.id, kind === 'Suspend' ? 'suspend' : 'reactivate'), kind === 'Suspend' ? 'was suspended.' : 'was reactivated.')
   }
 
   const rowAction = (o: AdminOrganization) => {
-    const action = ORG_ACTION[o.status]
-    if (action)
+    // Which action a row offers is presentation; the backend re-checks the status on every command.
+    const kind = ORG_ACTION[o.status]
+    if (kind)
       return (
-        <Button variant={action === 'Suspend' ? 'outline' : 'secondary'} size="sm" className="org-action" onClick={() => act(o, action)}>
-          {action}
+        <Button
+          variant={kind === 'Suspend' ? 'outline' : 'secondary'}
+          size="sm"
+          className="org-action"
+          loading={action.pendingId === o.id}
+          disabled={action.busy}
+          onClick={() => act(o, kind)}
+        >
+          {kind}
           <span className="visually-hidden"> {o.name}</span>
         </Button>
       )
@@ -72,35 +90,19 @@ export function ManageOrganizations() {
         aside={
           <dl className="readout">
             {ORGANIZATION_STATUSES.map((s) => (
-              <div key={s} className={cn(s === 'Pending' && count(s) > 0 && 'is-warn')}>
+              <div key={s} className={cn(s === 'Pending' && (count(s) ?? 0) > 0 && 'is-warn')}>
                 <dt>{s}</dt>
-                <dd>{String(count(s)).padStart(2, '0')}</dd>
+                <dd>{count(s) === undefined ? '––' : String(count(s)).padStart(2, '0')}</dd>
               </div>
             ))}
           </dl>
         }
-        meta={['Registry', `${organizations.length} records`, `${PAGE_SIZE} per page`]}
+        meta={['Registry', `${count() ?? '…'} records`, `${PAGE_SIZE} per page`]}
       />
 
       <div className="adm-toolbar">
-        <form role="search" className="adm-search" onSubmit={(e) => e.preventDefault()}>
-          <label htmlFor="org-q" className="visually-hidden">
-            Search organizations by name
-          </label>
-          <Search aria-hidden="true" />
-          <input
-            id="org-q"
-            type="search"
-            className="adm-input"
-            placeholder="Search by organization name"
-            autoComplete="off"
-            value={query}
-            onChange={(e) => update({ q: e.target.value, page: null })}
-          />
-        </form>
-
         <div className="adm-seg" role="group" aria-label="Filter by status">
-          {[null, ...ORGANIZATION_STATUSES].map((s) => {
+          {[undefined, ...ORGANIZATION_STATUSES].map((s) => {
             const active = s === status
             return (
               <button
@@ -108,51 +110,50 @@ export function ManageOrganizations() {
                 type="button"
                 className="adm-seg__btn"
                 aria-pressed={active}
-                onClick={() => update({ status: s, page: null })}
+                onClick={() => update({ status: s ?? null, page: null })}
               >
                 {active && <motion.span layoutId="org-filter" className="adm-seg__indicator" transition={spring.indicator} />}
                 <span className="adm-seg__label">{s ?? 'All'}</span>
-                <span className="adm-seg__count">
-                  {count(s)}
-                  <span className="visually-hidden"> organizations</span>
-                </span>
+                {count(s) !== undefined && (
+                  <span className="adm-seg__count">
+                    {count(s)}
+                    <span className="visually-hidden"> organizations</span>
+                  </span>
+                )}
               </button>
             )
           })}
         </div>
       </div>
 
-      <section aria-labelledby="org-results" id="org-region">
+      <section aria-labelledby="org-results" id="org-region" aria-busy={list.loading}>
         <div className="adm-resultline">
           <h2 id="org-results" className="adm-resultline__title">
             {status ? `${status} organizations` : 'All organizations'}
           </h2>
           <p className="adm-resultline__count" role="status">
-            {filtered.length
-              ? `Showing ${from}–${from + items.length - 1} of ${filtered.length}`
-              : 'No matching organizations'}
+            {!result ? 'Loading…' : total ? `Showing ${from}–${from + items.length - 1} of ${total}` : 'No matching organizations'}
           </p>
         </div>
 
         <div className="adm-notice" role="status">
-          {notice && (
+          {action.notice && (
             <p className="ws-notice">
-              <Info aria-hidden="true" />
-              {notice.text}
+              {action.notice.ok ? <CheckCircle2 aria-hidden="true" /> : <AlertCircle aria-hidden="true" />}
+              {action.notice.text}
             </p>
           )}
         </div>
 
-        {items.length === 0 ? (
+        {result && items.length === 0 ? (
           <div className="ws-empty adm-empty">
-            <h3>No organizations match.</h3>
-            <p>
-              Nothing {status ? `with status ${status.toLowerCase()}` : 'in the registry'}
-              {needle ? ` matches “${query}”` : ''}.
-            </p>
-            <Button variant="outline" iconStart={<X />} onClick={() => update({ q: null, status: null, page: null })}>
-              Clear search and filter
-            </Button>
+            <h3>No organizations here.</h3>
+            <p>Nothing {status ? `with status ${status.toLowerCase()}` : 'in the registry'} yet.</p>
+            {status && (
+              <Button variant="outline" iconStart={<X />} onClick={() => update({ status: null, page: null })}>
+                Clear filter
+              </Button>
+            )}
           </div>
         ) : desktop ? (
           <div className="ledger-frame">
@@ -164,7 +165,7 @@ export function ManageOrganizations() {
                 <tr>
                   <th scope="col">Organization</th>
                   <th scope="col">Type</th>
-                  <th scope="col">License / reference</th>
+                  <th scope="col">License</th>
                   <th scope="col">Status</th>
                   <th scope="col">Joined</th>
                   <th scope="col" className="num">
@@ -174,17 +175,13 @@ export function ManageOrganizations() {
               </thead>
               <tbody>
                 {items.map((o) => (
-                  <tr key={o.id} data-status={o.status} className={cn(notice?.id === o.id && 'is-flagged')}>
+                  <tr key={o.id} data-status={o.status} className={cn(action.notice?.id === o.id && 'is-flagged')}>
                     <th scope="row" className="ledger__rowhead">
                       <span className="ledger__primary">
                         <strong>{o.name}</strong>
-                        <span className="ledger__sub">{o.id}</span>
                       </span>
                     </th>
-                    <td>
-                      {ORGANIZATION_TYPE_LABELS[o.type]}
-                      <span className="ledger__sub ledger__sub--plain">{o.city}</span>
-                    </td>
+                    <td>{ORGANIZATION_TYPE_LABELS[o.type]}</td>
                     <td>
                       <code className="ledger__mono">{o.licenseNumber}</code>
                     </td>
@@ -192,8 +189,8 @@ export function ManageOrganizations() {
                       <StatusChip tone={ORG_STATUS_TONE[o.status]}>{o.status}</StatusChip>
                     </td>
                     <td>
-                      <time dateTime={o.createdAt} className="ledger__mono">
-                        {formatDate(o.createdAt)}
+                      <time dateTime={o.createdAtUtc} className="ledger__mono">
+                        {formatDate(o.createdAtUtc)}
                       </time>
                     </td>
                     <td className="num">{rowAction(o)}</td>
@@ -205,7 +202,7 @@ export function ManageOrganizations() {
         ) : (
           <ul role="list" className="records">
             {items.map((o) => (
-              <li key={o.id} className={cn('record', notice?.id === o.id && 'is-flagged')} data-status={o.status}>
+              <li key={o.id} className={cn('record', action.notice?.id === o.id && 'is-flagged')} data-status={o.status}>
                 <div className="record__head">
                   <h3 className="record__title">{o.name}</h3>
                   <StatusChip tone={ORG_STATUS_TONE[o.status]}>{o.status}</StatusChip>
@@ -218,19 +215,13 @@ export function ManageOrganizations() {
                   <div>
                     <dt>Joined</dt>
                     <dd>
-                      <time dateTime={o.createdAt}>{formatDate(o.createdAt)}</time>
+                      <time dateTime={o.createdAtUtc}>{formatDate(o.createdAtUtc)}</time>
                     </dd>
                   </div>
                   <div>
                     <dt>License</dt>
                     <dd>
                       <code>{o.licenseNumber}</code>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>ID</dt>
-                    <dd>
-                      <code>{o.id}</code>
                     </dd>
                   </div>
                 </dl>

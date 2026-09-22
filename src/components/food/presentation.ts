@@ -2,7 +2,7 @@
 import { Carrot, CookingPot, Milk, Package, ShoppingBasket, Wheat, type LucideIcon } from 'lucide-react'
 import type { CategoryMediaSlot } from '../../data/categoryMedia'
 import type { Category, MarketplaceItem, QuantityUnit } from '../../lib/api/marketplace'
-import type { Donation, DonationStatus, FoodCategory } from '../../types/donation'
+import type { DonationStatus } from '../../types/donation'
 import type { StatusTone } from '../ui/StatusChip'
 
 export type StatusPhase = 'draft' | 'open' | 'progress' | 'done' | 'ended'
@@ -23,15 +23,6 @@ export const STATUS_META: Record<DonationStatus, { label: string; tone: StatusTo
 
 /** How a category looks: its label, media slot and icon. Presentation only — never the taxonomy. */
 export type CategoryVisual = { label: string; slot: CategoryMediaSlot; icon: LucideIcon }
-
-export const CATEGORY_META: Record<FoodCategory, CategoryVisual> = {
-  Produce: { label: 'Produce', slot: 'produce', icon: Carrot },
-  Bakery: { label: 'Bakery', slot: 'bakery', icon: Wheat },
-  PreparedMeals: { label: 'Prepared meals', slot: 'preparedMeals', icon: CookingPot },
-  Dairy: { label: 'Dairy', slot: 'dairy', icon: Milk },
-  Pantry: { label: 'Pantry', slot: 'pantry', icon: Package },
-  Mixed: { label: 'Mixed', slot: 'mixed', icon: ShoppingBasket },
-}
 
 // Real categories are database records. Known names get a matching visual; any other (new) category gets the
 // generic one, so adding a category never needs a frontend change.
@@ -85,10 +76,5 @@ export const listingOf = (d: MarketplaceItem): Listing => ({
   category: categoryVisual(d.category),
 })
 
-/** Prototype stand-in for the API's permission check: only unclaimed listings can be edited. */
-export const isEditable = (d: Pick<Donation, 'status'>) => d.status === 'Draft' || d.status === 'Available'
-
-export const formatQuantity = (d: Pick<Donation, 'quantity' | 'unit'>) => `${d.quantity} ${d.unit}`
-
 /** Neighbourhood shown on cards: the last part of the pickup address ("14 Harbour Street, Harbourside" → "Harbourside"). */
-export const pickupAreaOf = (d: Pick<Donation, 'pickupAddress'>) => d.pickupAddress.split(',').at(-1)?.trim() || '—'
+export const pickupAreaOf = (d: { pickupAddress: string }) => d.pickupAddress.split(',').at(-1)?.trim() || '—'

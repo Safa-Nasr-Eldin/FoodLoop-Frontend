@@ -1,20 +1,25 @@
 import { AlertCircle, Search } from 'lucide-react'
-import { useMemo } from 'react'
-import { getMockAuditEntries } from '../../data/mock/admin'
-import { cn } from '../../lib/cn'
+import { PageMessage } from '../../components/workspace/PageState'
+import { AUDIT_ACTIONS, getAudit } from '../../lib/api/admin'
+import { codeOf } from '../../lib/api/client'
+import { useLoad } from '../../lib/api/useLoad'
 import { formatAgo } from '../../lib/expiry'
 import { useMediaQuery } from '../../lib/useMediaQuery'
 import { AdminIntro, Pagination } from './kit'
-import { formatUtc, paginate, useQueryParams } from './presentation'
+import { formatUtc, useQueryParams } from './presentation'
 import './audit.css'
 
-const PAGE_SIZE = 10
+/** Backend page size for GET /api/admin/audit. */
+const PAGE_SIZE = 20
 
-/** yyyy-mm-dd (UTC) for the date inputs and comparisons — audit timestamps are UTC throughout. */
-const utcDateKey = (iso: string) => iso.slice(0, 10)
+/** yyyy-mm-dd (a UTC day) → the ISO instant that starts it; `next` gives the following midnight (toUtc is exclusive). */
+const utcDayStart = (day: string, next = false) => {
+  const d = new Date(`${day}T00:00:00Z`)
+  if (next) d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString()
+}
 
 export function AuditLog() {
-  const entries = getMockAuditEntries()
   const desktop = useMediaQuery('(min-width: 900px)')
   const [params, update] = useQueryParams()
 
@@ -22,24 +27,29 @@ export function AuditLog() {
   const actor = params.get('actor') ?? ''
   const from = params.get('from') ?? ''
   const to = params.get('to') ?? ''
-
-  const actions = useMemo(() => [...new Set(entries.map((e) => e.action))].sort(), [entries])
-  const actors = useMemo(() => [...new Set(entries.map((e) => e.actorName))].sort(), [entries])
-
+  const requested = Math.max(1, Number(params.get('page')) || 1)
   const rangeInvalid = !!from && !!to && from > to
 
-  const filtered = entries.filter((e) => {
-    if (action && e.action !== action) return false
-    if (actor && e.actorName !== actor) return false
-    if (!rangeInvalid) {
-      const key = utcDateKey(e.timestampUtc)
-      if (from && key < from) return false
-      if (to && key > to) return false
-    }
-    return true
-  })
-  const { page, pages, items, from: startIdx } = paginate(filtered, Number(params.get('page')), PAGE_SIZE)
+  const query = {
+    page: requested,
+    action: action || undefined,
+    actor: actor || undefined,
+    // An inverted range is not sent: the notice below explains it, and the list stays unfiltered by date.
+    fromUtc: from && !rangeInvalid ? utcDayStart(from) : undefined,
+    toUtc: to && !rangeInvalid ? utcDayStart(to, true) : undefined,
+  }
+  const load = useLoad(JSON.stringify(query), (signal) => getAudit(query, signal))
   const anyFilter = !!(action || actor || from || to)
+
+  if (load.error !== undefined && !load.data && codeOf(load.error) !== 'audit.invalid_range')
+    return <PageMessage title="We couldn’t load the audit log." onRetry={load.reload} />
+
+  const result = load.data
+  const items = result?.items ?? []
+  const page = result?.page ?? requested
+  const total = result?.totalCount ?? 0
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const startIdx = (page - 1) * PAGE_SIZE + 1
 
   return (
     <div className="container ws-page adm">
@@ -51,7 +61,7 @@ export function AuditLog() {
           </>
         }
         lead="Every recorded action on the network, newest first. Filter by action, actor or date range."
-        meta={[`${entries.length} entries`, 'UTC timestamps', 'Details payload not shown']}
+        meta={[result ? `${total} entries` : 'Loading…', 'UTC timestamps', 'Details payload not shown']}
       />
 
       <div className="adm-toolbar audit-filters">
@@ -61,7 +71,7 @@ export function AuditLog() {
           </label>
           <select id="audit-action" className="adm-select" value={action} onChange={(e) => update({ action: e.target.value || null, page: null })}>
             <option value="">All actions</option>
-            {actions.map((a) => (
+            {AUDIT_ACTIONS.map((a) => (
               <option key={a} value={a}>
                 {a}
               </option>
@@ -69,19 +79,30 @@ export function AuditLog() {
           </select>
         </div>
 
-        <div className="adm-field">
+        <form
+          key={actor}
+          role="search"
+          className="adm-search adm-field"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const value = new FormData(e.currentTarget).get('actor')
+            update({ actor: typeof value === 'string' && value.trim() ? value.trim() : null, page: null })
+          }}
+        >
           <label htmlFor="audit-actor" className="visually-hidden">
-            Filter by actor
+            Filter by actor name
           </label>
-          <select id="audit-actor" className="adm-select" value={actor} onChange={(e) => update({ actor: e.target.value || null, page: null })}>
-            <option value="">All actors</option>
-            {actors.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </div>
+          <Search aria-hidden="true" />
+          <input
+            id="audit-actor"
+            name="actor"
+            type="search"
+            className="adm-input"
+            placeholder="Actor name, then Enter"
+            autoComplete="off"
+            defaultValue={actor}
+          />
+        </form>
 
         <div className="adm-field audit-daterange">
           <label htmlFor="audit-from" className="visually-hidden">
@@ -127,17 +148,17 @@ export function AuditLog() {
         )}
       </div>
 
-      <section aria-labelledby="audit-results" id="audit-region">
+      <section aria-labelledby="audit-results" id="audit-region" aria-busy={load.loading}>
         <div className="adm-resultline">
           <h2 id="audit-results" className="adm-resultline__title">
             {anyFilter ? 'Filtered entries' : 'All entries'}
           </h2>
           <p className="adm-resultline__count" role="status">
-            {filtered.length ? `Showing ${startIdx}–${startIdx + items.length - 1} of ${filtered.length}` : 'No matching entries'}
+            {!result ? 'Loading…' : total ? `Showing ${startIdx}–${startIdx + items.length - 1} of ${total}` : 'No matching entries'}
           </p>
         </div>
 
-        {items.length === 0 ? (
+        {result && items.length === 0 ? (
           <div className="ws-empty adm-empty">
             <Search aria-hidden="true" />
             <h3>No entries match.</h3>
@@ -169,14 +190,7 @@ export function AuditLog() {
                       <code className="audit-action">{e.action}</code>
                     </td>
                     <td>
-                      <span className="ledger__primary">
-                        {e.actorName}
-                        <span className="ledger__sub">
-                          <span className="id-trunc" title={e.actorUserId}>
-                            {e.actorUserId}
-                          </span>
-                        </span>
-                      </span>
+                      <span className="ledger__primary">{e.actorName}</span>
                     </td>
                     <td>
                       {e.entityType}
@@ -216,12 +230,6 @@ export function AuditLog() {
                     <dt>Timestamp (UTC)</dt>
                     <dd>
                       <code>{formatUtc(e.timestampUtc)}</code>
-                    </dd>
-                  </div>
-                  <div className="span-2">
-                    <dt>Actor user ID</dt>
-                    <dd className={cn('id-trunc')} title={e.actorUserId}>
-                      <code>{e.actorUserId}</code>
                     </dd>
                   </div>
                 </dl>

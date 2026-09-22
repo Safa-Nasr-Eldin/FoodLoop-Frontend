@@ -218,6 +218,7 @@
   border-radius: var(--radius-sm);
   transition: color var(--dur-fast) var(--ease-out);
 }
+button.ws-back { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
 .ws-back svg { width: 18px; height: 18px; transition: transform var(--dur-ui) var(--ease-out); }
 .ws-back:hover { color: var(--forest-900); }
 .on-dark .ws-back:hover { color: var(--mint-100); }
@@ -250,3 +251,7 @@
 }
 .ws-empty :is(h2, h3) { font-size: var(--text-h3); }
 .ws-empty p { color: var(--color-text-muted); max-width: 34rem; }
+
+/* Previous / next paging for workspace lists (no totals: the API only says whether another page exists). */
+.ws-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-3) var(--space-5); margin-top: var(--space-7); }
+.ws-pager .t-data { color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 600; }

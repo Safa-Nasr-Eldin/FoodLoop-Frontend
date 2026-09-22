@@ -134,7 +134,7 @@ function WorkspaceFooter() {
       <div className="container ws-footer__inner">
         <p>
           <span className="ws-footer__dot" aria-hidden="true" />
-          Your sign-in is real. Workspace content is still sample data while each feature is connected.
+          FoodLoop — rescuing surplus food, one verified handover at a time.
         </p>
         <Link to={PATHS.home} className="link-underline">
           Back to the public site

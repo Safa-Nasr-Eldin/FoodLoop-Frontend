@@ -3,17 +3,10 @@ import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PATHS } from '../../app/routes'
 import { BotanicalCorner, BotanicalDecoration } from '../../components/brand/Botanical'
-import { STATUS_META, type StatusPhase } from '../../components/food/presentation'
 import { RevealGroup, RevealItem } from '../../components/motion/Reveal'
-import {
-  getMockAdminSummary,
-  getMockAssignableClaims,
-  getMockAuditEntries,
-  getMockClaimStatusCounts,
-  getMockOrganizations,
-  getMockPendingRequests,
-} from '../../data/mock/admin'
-import { getMockDonations } from '../../data/mock/donations'
+import { PageLoading, PageMessage } from '../../components/workspace/PageState'
+import { getAssignableClaims, getAudit, getDashboard, getOrganizations, getPendingOrganizations } from '../../lib/api/admin'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
 import { describeExpiry, formatAgo } from '../../lib/expiry'
 import { ease } from '../../lib/motion'
@@ -22,33 +15,39 @@ import { AdminIntro } from './kit'
 import { daysSince, formatUtcTime, pad2 } from './presentation'
 import './dashboard.css'
 
-const PHASES: { id: StatusPhase; label: string }[] = [
-  { id: 'draft', label: 'Draft' },
-  { id: 'open', label: 'Available' },
-  { id: 'progress', label: 'Claimed or moving' },
-  { id: 'done', label: 'Delivered or closed' },
-  { id: 'ended', label: 'Expired, cancelled or failed' },
-]
-
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+/** Everything on this page comes from admin endpoints: the five backend counts plus the real queues and registry totals. */
+async function loadOverview(signal: AbortSignal) {
+  const [summary, pending, assignable, audit, ...byStatus] = await Promise.all([
+    getDashboard(signal),
+    getPendingOrganizations(signal),
+    getAssignableClaims(signal),
+    getAudit({ page: 1 }, signal),
+    ...ORGANIZATION_STATUSES.map((s) => getOrganizations(s, 1, signal)),
+  ])
+  return {
+    summary,
+    pending,
+    assignable,
+    audit,
+    byOrgStatus: ORGANIZATION_STATUSES.map((status, i) => ({ status, count: byStatus[i].totalCount })),
+  }
+}
 
 export function AdminDashboard() {
   const reduced = useReducedMotion()
-  const summary = getMockAdminSummary()
-  const organizations = getMockOrganizations()
-  const pending = getMockPendingRequests()
-  const assignable = getMockAssignableClaims()
-  const claims = getMockClaimStatusCounts()
-  const donations = getMockDonations()
-  const activity = getMockAuditEntries()
+  const load = useLoad('overview', loadOverview)
 
-  const byPhase = PHASES.map((p) => ({ ...p, count: donations.filter((d) => STATUS_META[d.status].phase === p.id).length }))
-  const byOrgStatus = ORGANIZATION_STATUSES.map((s) => ({ status: s, count: organizations.filter((o) => o.status === s).length }))
-  const moving = claims.PickupPending + claims.PickedUp + claims.InTransit
-  const closingSoon = assignable.filter((c) => describeExpiry(c.expiresAt).urgency === 'critical').length
-  const oldestWait = pending.length ? daysSince(pending[0].submittedAt) : 0
-  const totalClaims = Object.values(claims).reduce((a, b) => a + b, 0)
-  const attention = [summary.pendingOrganizations, assignable.length, summary.expiredDonations].filter(Boolean).length
+  if (load.error !== undefined && !load.data) return <PageMessage title="We couldn’t load the overview." onRetry={load.reload} />
+  if (!load.data) return <PageLoading label="Loading the operations overview…" />
+
+  const { summary, pending, assignable, audit, byOrgStatus } = load.data
+  const unassigned = assignable.filter((c) => !c.hasCourier)
+  const organizations = byOrgStatus.reduce((a, s) => a + s.count, 0)
+  const closingSoon = unassigned.filter((c) => describeExpiry(c.expiresAtUtc).urgency === 'critical').length
+  const oldestWait = pending.length ? daysSince(pending[0].createdAtUtc) : 0
+  const attention = [summary.pendingOrganizations, unassigned.length, summary.expiredDonations].filter(Boolean).length
 
   // Bars grow from the left as their tile reveals; under reduced motion they render full width at once.
   const grow = (i = 0) => ({
@@ -68,11 +67,7 @@ export function AdminDashboard() {
           </>
         }
         lead="Everything moving through FoodLoop right now — what needs a decision first, and what already reached a table."
-        meta={[
-          plural(organizations.length, 'organization'),
-          plural(donations.length, 'donation'),
-          plural(totalClaims, 'claim'),
-        ]}
+        meta={[plural(organizations, 'organization'), plural(summary.availableDonations, 'available donation'), plural(audit.totalCount, 'audit entry', 'audit entries')]}
       />
 
       <RevealGroup className="bento">
@@ -94,42 +89,18 @@ export function AdminDashboard() {
               </p>
             </div>
 
-            <div className="ops__flow">
-              <p className="ops__flow-title">
-                All {donations.length} donations by lifecycle stage
-              </p>
-              <div className="flowbar" aria-hidden="true">
-                {byPhase
-                  .filter((p) => p.count)
-                  .map((p, i) => (
-                    <motion.span key={p.id} className={cn('flowbar__seg', `is-${p.id}`)} style={{ flexGrow: p.count }} {...grow(i)} />
-                  ))}
-              </div>
-              <dl className="flowlegend">
-                {byPhase.map((p) => (
-                  <div key={p.id} className={`is-${p.id}`}>
-                    <dt>
-                      <span className="flowlegend__swatch" aria-hidden="true" />
-                      {p.label}
-                    </dt>
-                    <dd className="t-data">{p.count}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-
             <dl className="ops__facts">
               <div>
-                <dt>Claims on the move</dt>
-                <dd className="t-data">{pad2(moving)}</dd>
-              </div>
-              <div>
                 <dt>Waiting for a courier</dt>
-                <dd className="t-data">{pad2(assignable.length)}</dd>
+                <dd className="t-data">{pad2(unassigned.length)}</dd>
               </div>
               <div>
-                <dt>Delivered, not yet closed</dt>
-                <dd className="t-data">{pad2(claims.Delivered)}</dd>
+                <dt>Closed deliveries</dt>
+                <dd className="t-data">{pad2(summary.closedDeliveries)}</dd>
+              </div>
+              <div>
+                <dt>Cancelled claims</dt>
+                <dd className="t-data">{pad2(summary.cancelledClaims)}</dd>
               </div>
             </dl>
           </section>
@@ -167,8 +138,8 @@ export function AdminDashboard() {
                 </Link>
               </li>
               <li>
-                <Link to={PATHS.adminCourier} className={cn('attention__item', assignable.length > 0 && 'is-due')}>
-                  <span className="attention__num t-data">{pad2(assignable.length)}</span>
+                <Link to={PATHS.adminCourier} className={cn('attention__item', unassigned.length > 0 && 'is-due')}>
+                  <span className="attention__num t-data">{pad2(unassigned.length)}</span>
                   <span className="attention__text">
                     <strong>Claims without a courier</strong>
                     <span>{closingSoon ? `${closingSoon} close within 3 hours` : 'None closing within 3 hours'}</span>
@@ -196,7 +167,7 @@ export function AdminDashboard() {
               Organization registry
             </h2>
             <p className="tile__figure">
-              <span className="t-data">{organizations.length}</span> organizations
+              <span className="t-data">{organizations}</span> organizations
             </p>
             <div className="statusbar" aria-hidden="true">
               {byOrgStatus
@@ -231,22 +202,7 @@ export function AdminDashboard() {
             <p className="tile__figure">
               <span className="t-data">{pad2(summary.closedDeliveries)}</span> closed deliveries
             </p>
-            <p className="tile__note">Handed over, verified and closed. Still in flight:</p>
-            <dl className="tile__rows tile__rows--ladder">
-              {(
-                [
-                  ['Pickup pending', claims.PickupPending],
-                  ['Picked up', claims.PickedUp],
-                  ['In transit', claims.InTransit],
-                  ['Delivered, awaiting closure', claims.Delivered],
-                ] as const
-              ).map(([label, n]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd className="t-data">{n}</dd>
-                </div>
-              ))}
-            </dl>
+            <p className="tile__note">Picked up and delivered with verified handover codes at both ends.</p>
           </section>
         </RevealItem>
 
@@ -266,10 +222,7 @@ export function AdminDashboard() {
                 <dd className="t-data">{pad2(summary.expiredDonations)}</dd>
               </div>
             </dl>
-            <p className="tile__note">
-              Food that never reached a table.{' '}
-              {claims.Failed ? `Plus ${plural(claims.Failed, 'failed handover')}.` : 'No failed handovers.'}
-            </p>
+            <p className="tile__note">Food that never reached a table.</p>
           </section>
         </RevealItem>
 
@@ -281,8 +234,8 @@ export function AdminDashboard() {
                 [
                   [PATHS.adminPending, 'Review pending requests', plural(pending.length, 'request')],
                   [PATHS.adminCourier, 'Assign couriers', plural(assignable.length, 'claim')],
-                  [PATHS.adminOrganizations, 'Manage organizations', plural(organizations.length, 'record')],
-                  [PATHS.adminAudit, 'Open the audit log', plural(activity.length, 'entry', 'entries')],
+                  [PATHS.adminOrganizations, 'Manage organizations', plural(organizations, 'record')],
+                  [PATHS.adminAudit, 'Open the audit log', plural(audit.totalCount, 'entry', 'entries')],
                 ] as const
               ).map(([to, label, count], i) => (
                 <li key={to}>
@@ -311,21 +264,25 @@ export function AdminDashboard() {
                 Full audit log <ArrowRight aria-hidden="true" />
               </Link>
             </header>
-            <ol role="list" className="activity__list">
-              {activity.slice(0, 6).map((e) => (
-                <li key={e.id} className="activity__row">
-                  <time dateTime={e.timestampUtc} className="activity__time">
-                    <span className="t-data">{formatUtcTime(e.timestampUtc)}</span>
-                    <span>{formatAgo(e.timestampUtc)}</span>
-                  </time>
-                  <code className="activity__action">{e.action}</code>
-                  <span className="activity__who">{e.actorName}</span>
-                  <span className="activity__entity">
-                    {e.entityType} <code>{e.entityId}</code>
-                  </span>
-                </li>
-              ))}
-            </ol>
+            {audit.items.length ? (
+              <ol role="list" className="activity__list">
+                {audit.items.slice(0, 6).map((e) => (
+                  <li key={e.id} className="activity__row">
+                    <time dateTime={e.timestampUtc} className="activity__time">
+                      <span className="t-data">{formatUtcTime(e.timestampUtc)}</span>
+                      <span>{formatAgo(e.timestampUtc)}</span>
+                    </time>
+                    <code className="activity__action">{e.action}</code>
+                    <span className="activity__who">{e.actorName}</span>
+                    <span className="activity__entity">
+                      {e.entityType} <code>{e.entityId.slice(0, 8)}</code>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="tile__note">No activity recorded yet.</p>
+            )}
           </section>
         </RevealItem>
       </RevealGroup>

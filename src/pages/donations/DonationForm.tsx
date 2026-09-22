@@ -1,98 +1,158 @@
 import { motion } from 'framer-motion'
-import { AlertCircle, ArrowLeft, ArrowRight, Check, Info } from 'lucide-react'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { AlertCircle, ArrowLeft, ArrowRight, Check, RotateCcw } from 'lucide-react'
+import { useRef, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { PATHS, donationPath } from '../../app/routes'
 import { DonationCard } from '../../components/food/DonationCard'
-import { CATEGORY_META, formatQuantity, type Listing } from '../../components/food/presentation'
+import { categoryVisual, formatUnitQuantity, type Listing } from '../../components/food/presentation'
 import { MagneticButton } from '../../components/motion/MagneticButton'
 import { Button } from '../../components/ui/Button'
 import { Field, FieldFrame } from '../../components/ui/Field'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
-import { getCurrentMockOrganization } from '../../data/mock/organization'
+import { ApiError, codeOf } from '../../lib/api/client'
+import { createDonation, updateDonation, type DonationForEdit, type DonationInput } from '../../lib/api/donations'
+import { getCategories, type Category, type QuantityUnit } from '../../lib/api/marketplace'
+import { useLoad } from '../../lib/api/useLoad'
 import { cn } from '../../lib/cn'
 import { toLocalInput } from '../../lib/expiry'
 import { spring } from '../../lib/motion'
-import { FOOD_CATEGORIES, QUANTITY_UNITS, type Donation, type FoodCategory, type QuantityUnit } from '../../types/donation'
+import { useSession } from '../../lib/session/context'
 import './donation-form.css'
 
 type Values = {
   title: string
-  category: FoodCategory | null
+  categoryId: string | null
   quantity: string
   unit: QuantityUnit
+  preparedAt: string // datetime-local value
   expiresAt: string // datetime-local value
   pickupAddress: string
+  storageInstructions: string
   description: string
 }
 type Key = keyof Values
 type Errors = Partial<Record<Key, string>>
 
-const TITLE_MAX = 80
-const DESCRIPTION_MAX = 500
+/** FoodLoop.Domain.Enums.QuantityUnit. */
+const UNITS: QuantityUnit[] = ['Meals', 'Kilograms', 'Packages']
 
-// Browser-side checks only (presence, shape). The API remains the authority once connected.
+// The backend's own limits (DonationService.ValidateAndNormalize), mirrored for immediate feedback only.
+const TITLE_MAX = 200
+const DESCRIPTION_MAX = 2000
+const STORAGE_MAX = 1000
+const ADDRESS_MAX = 500
+
+// Browser-side checks only (presence, shape). The API is the authority and re-validates everything.
 function validate(v: Values): Errors {
   const errors: Errors = {}
   const qty = Number(v.quantity)
   if (!v.title.trim()) errors.title = 'Give the donation a short title.'
-  else if (v.title.length > TITLE_MAX) errors.title = `Keep the title under ${TITLE_MAX} characters.`
-  if (!v.category) errors.category = 'Choose the category that fits best.'
+  else if (v.title.trim().length > TITLE_MAX) errors.title = `Keep the title under ${TITLE_MAX} characters.`
+  if (!v.categoryId) errors.categoryId = 'Choose the category that fits best.'
   if (!v.quantity) errors.quantity = 'Enter a quantity.'
-  else if (!Number.isInteger(qty) || qty < 1) errors.quantity = 'Use a whole number of 1 or more.'
+  else if (!Number.isFinite(qty) || qty <= 0) errors.quantity = 'Use a number greater than zero.'
+  if (!v.preparedAt) errors.preparedAt = 'When was this food prepared?'
   if (!v.expiresAt) errors.expiresAt = 'Choose when this food should be collected by.'
-  else if (new Date(v.expiresAt).getTime() <= Date.now()) errors.expiresAt = 'Choose a time in the future.'
+  else if (v.preparedAt && new Date(v.expiresAt).getTime() <= new Date(v.preparedAt).getTime())
+    errors.expiresAt = 'Collect-by must be after the preparation time.'
   if (!v.pickupAddress.trim()) errors.pickupAddress = 'Enter the pickup address.'
-  if (!v.description.trim()) errors.description = 'Add a short description: contents, packaging, handling.'
-  else if (v.description.length > DESCRIPTION_MAX) errors.description = `Keep it under ${DESCRIPTION_MAX} characters.`
+  else if (v.pickupAddress.trim().length > ADDRESS_MAX) errors.pickupAddress = `Keep it under ${ADDRESS_MAX} characters.`
+  if (v.storageInstructions.length > STORAGE_MAX) errors.storageInstructions = `Keep it under ${STORAGE_MAX} characters.`
+  if (v.description.length > DESCRIPTION_MAX) errors.description = `Keep it under ${DESCRIPTION_MAX} characters.`
   return errors
 }
 
 const SECTIONS: { id: string; index: string; title: string; keys: Key[] }[] = [
-  { id: 'sec-food', index: '01', title: 'Food', keys: ['title', 'category'] },
-  { id: 'sec-timing', index: '02', title: 'Quantity & timing', keys: ['quantity', 'expiresAt'] },
-  { id: 'sec-pickup', index: '03', title: 'Pickup', keys: ['pickupAddress'] },
+  { id: 'sec-food', index: '01', title: 'Food', keys: ['title', 'categoryId'] },
+  { id: 'sec-timing', index: '02', title: 'Quantity & timing', keys: ['quantity', 'preparedAt', 'expiresAt'] },
+  { id: 'sec-pickup', index: '03', title: 'Pickup', keys: ['pickupAddress', 'storageInstructions'] },
   { id: 'sec-details', index: '04', title: 'Details', keys: ['description'] },
 ]
 
-type DonationFormProps = { mode: 'create' } | { mode: 'edit'; donation: Donation }
+const toInput = (v: Values): DonationInput => ({
+  categoryId: v.categoryId!,
+  title: v.title.trim(),
+  description: v.description.trim(),
+  quantity: Number(v.quantity),
+  unit: v.unit,
+  preparedAt: new Date(v.preparedAt).toISOString(),
+  expiresAt: new Date(v.expiresAt).toISOString(),
+  storageInstructions: v.storageInstructions.trim(),
+  pickupAddress: v.pickupAddress.trim(),
+})
 
-/** Create / Edit share this form. All state is local presentation state; nothing is submitted anywhere. */
+type Submit = { status: 'idle' } | { status: 'submitting' } | { status: 'failed'; message: string; stale?: boolean }
+
+/** Copy for a failed save, from the stable code (plus the backend's own rule text for donation.invalid). */
+function saveFailure(error: unknown): Extract<Submit, { status: 'failed' }> {
+  switch (codeOf(error)) {
+    case 'donation.invalid':
+      return { status: 'failed', message: (error as ApiError).detail ?? 'Please check the details and try again.' }
+    case 'validation':
+      return { status: 'failed', message: 'Some details are missing or not in the expected format.' }
+    case 'donation.stale':
+      return {
+        status: 'failed',
+        stale: true,
+        message: 'This draft was changed somewhere else since you opened it. Reload to get the latest version — your edits here were not saved.',
+      }
+    case 'donation.invalid_state':
+    case 'donation.not_found':
+      return { status: 'failed', message: 'This donation is no longer a draft, so it can’t be changed.' }
+    case 'organization.not_active':
+      return { status: 'failed', message: 'Your organization must be active before it can list donations.' }
+    case 'antiforgery.invalid':
+      return { status: 'failed', message: 'Your session changed in the meantime. Nothing was saved — please try again.' }
+    case 'network':
+      return { status: 'failed', message: 'We couldn’t reach FoodLoop. Check My donations before trying again — the save may have gone through.' }
+    default:
+      return { status: 'failed', message: 'Something went wrong on our side and nothing was saved. Please try again in a moment.' }
+  }
+}
+
+type DonationFormProps = { mode: 'create' } | { mode: 'edit'; donation: DonationForEdit; onReload: () => void }
+
+/** Create / Edit share this form. Create saves a Draft; Edit is Draft-only and sends the opaque version back. */
 export function DonationForm(props: DonationFormProps) {
-  const org = getCurrentMockOrganization()
+  const navigate = useNavigate()
+  const { state } = useSession()
+  const orgName = (state.status === 'authenticated' && state.session.organization?.name) || 'Your organization'
   const editing = props.mode === 'edit' ? props.donation : null
+  const categories = useLoad('categories', getCategories)
   const [values, setValues] = useState<Values>(() =>
     editing
       ? {
           title: editing.title,
-          category: editing.category,
+          categoryId: editing.categoryId,
           quantity: String(editing.quantity),
           unit: editing.unit,
-          expiresAt: toLocalInput(editing.expiresAt),
+          preparedAt: toLocalInput(editing.preparedAtUtc),
+          expiresAt: toLocalInput(editing.expiresAtUtc),
           pickupAddress: editing.pickupAddress,
+          storageInstructions: editing.storageInstructions,
           description: editing.description,
         }
       : {
           title: '',
-          category: null,
+          categoryId: null,
           quantity: '',
-          unit: 'kg',
+          unit: 'Meals',
+          preparedAt: toLocalInput(new Date().toISOString()),
           expiresAt: '',
-          pickupAddress: `${org.address}, ${org.city.split(',')[0]}`,
+          pickupAddress: '',
+          storageInstructions: '',
           description: '',
         },
   )
   const [errors, setErrors] = useState<Errors>({})
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle')
-  const [minExpiry] = useState(() => toLocalInput(new Date().toISOString()))
+  const [submit, setSubmit] = useState<Submit>({ status: 'idle' })
   const formRef = useRef<HTMLFormElement>(null)
-  const timer = useRef<number | undefined>(undefined)
-
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+  const inFlight = useRef(false)
 
   const complete = validate(values)
   const sectionDone = (keys: Key[]) => keys.every((k) => !complete[k])
   const doneCount = SECTIONS.filter((s) => sectionDone(s.keys)).length
+  const selectedCategory = categories.data?.find((c) => c.id === values.categoryId)
 
   function set<K extends Key>(key: K, value: Values[K]) {
     setValues((v) => ({ ...v, [key]: value }))
@@ -102,22 +162,35 @@ export function DonationForm(props: DonationFormProps) {
         delete next[key]
         return next
       })
-    if (status === 'done') setStatus('idle')
+    if (submit.status === 'failed' && !submit.stale) setSubmit({ status: 'idle' })
   }
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (inFlight.current) return
     const found = validate(values)
     setErrors(found)
     const first = (Object.keys(found) as Key[])[0]
     if (first) {
-      setStatus('idle')
+      setSubmit({ status: 'idle' })
       formRef.current?.querySelector<HTMLElement>(`[name="${first}"]`)?.focus()
       return
     }
-    setStatus('submitting')
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => setStatus('done'), 800)
+    inFlight.current = true
+    setSubmit({ status: 'submitting' })
+    try {
+      if (editing) {
+        await updateDonation(editing.id, toInput(values), editing.version)
+        navigate(donationPath(editing.id))
+      } else {
+        const { id } = await createDonation(toInput(values))
+        navigate(donationPath(id))
+      }
+    } catch (error) {
+      setSubmit(saveFailure(error))
+    } finally {
+      inFlight.current = false
+    }
   }
 
   // Live preview: the same card the marketplace renders, fed by the form state.
@@ -125,17 +198,16 @@ export function DonationForm(props: DonationFormProps) {
     id: editing?.id ?? 'preview',
     title: values.title.trim() || 'Your donation title',
     description: values.description.trim(),
-    category: CATEGORY_META[values.category ?? 'Mixed'],
-    quantityLabel: Number(values.quantity) > 0 ? formatQuantity({ quantity: Number(values.quantity), unit: values.unit }) : '—',
+    category: categoryVisual(selectedCategory ?? { name: 'Category' }),
+    quantityLabel: Number(values.quantity) > 0 ? formatUnitQuantity(Number(values.quantity), values.unit) : '—',
     expiresAt: values.expiresAt && !Number.isNaN(Date.parse(values.expiresAt)) ? new Date(values.expiresAt).toISOString() : '',
     pickupAddress: values.pickupAddress.trim() || '—',
-    status: editing?.status ?? 'Available',
-    donorName: org.name,
-    imageUrl: editing?.imageUrl,
+    status: 'Available',
+    donorName: orgName,
   }
 
-  const sectionState = (keys: Key[]) =>
-    keys.some((k) => errors[k]) ? 'error' : sectionDone(keys) ? 'done' : 'todo'
+  const sectionState = (keys: Key[]) => (keys.some((k) => errors[k]) ? 'error' : sectionDone(keys) ? 'done' : 'todo')
+  const submitting = submit.status === 'submitting'
 
   return (
     <div className="container ws-page dform">
@@ -145,11 +217,13 @@ export function DonationForm(props: DonationFormProps) {
       </Link>
 
       <header className="ws-intro dform__intro">
-        <SectionEyebrow>{editing ? `Donor workspace · #${editing.id.toUpperCase()}` : 'Donor workspace · New listing'}</SectionEyebrow>
+        <SectionEyebrow>
+          {editing ? `Donor workspace · Draft #${editing.id.slice(0, 8).toUpperCase()}` : 'Donor workspace · New listing'}
+        </SectionEyebrow>
         <h1 className="ws-intro__title">
           {editing ? (
             <>
-              Edit <em>donation</em>
+              Edit <em>draft</em>
             </>
           ) : (
             <>
@@ -159,8 +233,8 @@ export function DonationForm(props: DonationFormProps) {
         </h1>
         <p className="t-lead ws-intro__lead">
           {editing
-            ? 'Update the details organizations see. Changes appear in the preview as you type.'
-            : 'Four short sections. The live preview shows exactly how organizations will see your listing.'}
+            ? 'Update the draft before you publish it. Changes appear in the preview as you type.'
+            : 'Four short sections. It saves as a draft — you review it, then publish it to the marketplace.'}
         </p>
       </header>
 
@@ -200,7 +274,14 @@ export function DonationForm(props: DonationFormProps) {
                         error={errors.title}
                         required
                       />
-                      <CategoryPicker value={values.category} error={errors.category} onChange={(c) => set('category', c)} />
+                      <CategoryPicker
+                        categories={categories.data}
+                        failed={categories.error !== undefined}
+                        onRetry={categories.reload}
+                        value={values.categoryId}
+                        error={errors.categoryId}
+                        onChange={(c) => set('categoryId', c)}
+                      />
                     </>
                   )}
 
@@ -211,9 +292,9 @@ export function DonationForm(props: DonationFormProps) {
                           id="quantity"
                           label="Quantity"
                           type="number"
-                          inputMode="numeric"
-                          min={1}
-                          step={1}
+                          inputMode="decimal"
+                          min={0}
+                          step="any"
                           value={values.quantity}
                           onChange={(e) => set('quantity', e.target.value)}
                           error={errors.quantity}
@@ -229,7 +310,7 @@ export function DonationForm(props: DonationFormProps) {
                               aria-describedby={describedBy}
                               onChange={(e) => set('unit', e.target.value as QuantityUnit)}
                             >
-                              {QUANTITY_UNITS.map((u) => (
+                              {UNITS.map((u) => (
                                 <option key={u} value={u}>
                                   {u}
                                 </option>
@@ -239,11 +320,19 @@ export function DonationForm(props: DonationFormProps) {
                         </FieldFrame>
                       </div>
                       <Field
+                        id="preparedAt"
+                        label="Prepared at"
+                        type="datetime-local"
+                        value={values.preparedAt}
+                        onChange={(e) => set('preparedAt', e.target.value)}
+                        error={errors.preparedAt}
+                        required
+                      />
+                      <Field
                         id="expiresAt"
                         label="Collect by"
                         hint="The latest time this food can be picked up."
                         type="datetime-local"
-                        min={minExpiry}
                         value={values.expiresAt}
                         onChange={(e) => set('expiresAt', e.target.value)}
                         error={errors.expiresAt}
@@ -253,23 +342,33 @@ export function DonationForm(props: DonationFormProps) {
                   )}
 
                   {section.id === 'sec-pickup' && (
-                    <Field
-                      id="pickupAddress"
-                      label="Pickup address"
-                      hint={`Pre-filled from ${org.name}. Change it if the food is somewhere else.`}
-                      autoComplete="street-address"
-                      value={values.pickupAddress}
-                      onChange={(e) => set('pickupAddress', e.target.value)}
-                      error={errors.pickupAddress}
-                      required
-                    />
+                    <>
+                      <Field
+                        id="pickupAddress"
+                        label="Pickup address"
+                        hint="Where the courier collects the food."
+                        autoComplete="street-address"
+                        value={values.pickupAddress}
+                        onChange={(e) => set('pickupAddress', e.target.value)}
+                        error={errors.pickupAddress}
+                        required
+                      />
+                      <Field
+                        id="storageInstructions"
+                        label="Storage (optional)"
+                        hint="e.g. “Keep chilled below 5 °C”."
+                        value={values.storageInstructions}
+                        onChange={(e) => set('storageInstructions', e.target.value)}
+                        error={errors.storageInstructions}
+                      />
+                    </>
                   )}
 
                   {section.id === 'sec-details' && (
                     <FieldFrame
                       id="description"
-                      label="Description"
-                      hint={`Contents, packaging, allergens, storage. ${values.description.length}/${DESCRIPTION_MAX}`}
+                      label="Description (optional)"
+                      hint={`Contents, packaging, allergens. ${values.description.length}/${DESCRIPTION_MAX}`}
                       error={errors.description}
                     >
                       {(describedBy) => (
@@ -281,7 +380,6 @@ export function DonationForm(props: DonationFormProps) {
                           value={values.description}
                           aria-describedby={describedBy}
                           aria-invalid={errors.description ? true : undefined}
-                          required
                           onChange={(e) => set('description', e.target.value)}
                         />
                       )}
@@ -294,8 +392,8 @@ export function DonationForm(props: DonationFormProps) {
 
           <div className="dform__submit">
             <MagneticButton>
-              <Button type="submit" size="lg" loading={status === 'submitting'} iconEnd={<ArrowRight />}>
-                {editing ? 'Save changes' : 'Publish donation'}
+              <Button type="submit" size="lg" loading={submitting} disabled={submitting} iconEnd={<ArrowRight />}>
+                {submitting ? 'Saving…' : editing ? 'Save draft' : 'Save as draft'}
               </Button>
             </MagneticButton>
             <Button variant="ghost" size="lg" to={editing ? donationPath(editing.id) : PATHS.donations}>
@@ -303,13 +401,16 @@ export function DonationForm(props: DonationFormProps) {
             </Button>
           </div>
           <div role="status" className="dform__status">
-            {status === 'done' && (
+            {submit.status === 'failed' && (
               <p className="ws-notice">
-                <Info aria-hidden="true" />
-                {editing
-                  ? 'Prototype only — your changes look good, but saving isn’t connected yet. Nothing was sent or stored.'
-                  : 'Prototype only — this donation is ready, but publishing isn’t connected yet. Nothing was sent or stored.'}
+                <AlertCircle aria-hidden="true" />
+                <span>{submit.message}</span>
               </p>
+            )}
+            {submit.status === 'failed' && submit.stale && props.mode === 'edit' && (
+              <Button variant="outline" size="sm" iconStart={<RotateCcw />} onClick={props.onReload}>
+                Reload latest version
+              </Button>
             )}
           </div>
         </form>
@@ -342,7 +443,7 @@ export function DonationForm(props: DonationFormProps) {
             Live preview
           </h2>
           <DonationCard donation={preview} preview className="dform__preview" />
-          <p className="dform__preview-note">How organizations will see this listing on the marketplace.</p>
+          <p className="dform__preview-note">How organizations will see this listing once you publish it.</p>
         </aside>
       </div>
     </div>
@@ -350,40 +451,59 @@ export function DonationForm(props: DonationFormProps) {
 }
 
 function CategoryPicker({
+  categories,
+  failed,
+  onRetry,
   value,
   error,
   onChange,
 }: {
-  value: FoodCategory | null
+  categories?: Category[]
+  failed: boolean
+  onRetry: () => void
+  value: string | null
   error?: string
-  onChange: (c: FoodCategory) => void
+  onChange: (id: string) => void
 }) {
   return (
     <fieldset className={cn('cat-pick', error && 'has-error')}>
       <legend className="field__label">Category</legend>
-      <div className="cat-pick__grid">
-        {FOOD_CATEGORIES.map((c) => {
-          const meta = CATEGORY_META[c]
-          const Icon = meta.icon
-          const checked = value === c
-          return (
-            <label key={c} className={cn('cat-pick__option', checked && 'is-checked')}>
-              <input
-                type="radio"
-                name="category"
-                value={c}
-                checked={checked}
-                onChange={() => onChange(c)}
-                className="cat-pick__input"
-                aria-describedby={error ? 'category-error' : undefined}
-              />
-              {checked && <motion.span layoutId="cat-pick-indicator" className="cat-pick__indicator" transition={spring.indicator} />}
-              <Icon aria-hidden="true" className="cat-pick__icon" />
-              <span className="cat-pick__label">{meta.label}</span>
-            </label>
-          )
-        })}
-      </div>
+      {categories ? (
+        <div className="cat-pick__grid">
+          {categories.map((c) => {
+            const meta = categoryVisual(c)
+            const Icon = meta.icon
+            const checked = value === c.id
+            return (
+              <label key={c.id} className={cn('cat-pick__option', checked && 'is-checked')}>
+                <input
+                  type="radio"
+                  name="categoryId"
+                  value={c.id}
+                  checked={checked}
+                  onChange={() => onChange(c.id)}
+                  className="cat-pick__input"
+                  aria-describedby={error ? 'category-error' : undefined}
+                />
+                {checked && <motion.span layoutId="cat-pick-indicator" className="cat-pick__indicator" transition={spring.indicator} />}
+                <Icon aria-hidden="true" className="cat-pick__icon" />
+                <span className="cat-pick__label">{meta.label}</span>
+              </label>
+            )
+          })}
+        </div>
+      ) : failed ? (
+        <div className="field__hint">
+          Categories couldn’t be loaded.{' '}
+          <Button variant="ghost" size="sm" iconStart={<RotateCcw />} onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
+      ) : (
+        <p className="field__hint" role="status">
+          Loading categories…
+        </p>
+      )}
       {error && (
         <p id="category-error" className="field__error">
           <AlertCircle aria-hidden="true" />

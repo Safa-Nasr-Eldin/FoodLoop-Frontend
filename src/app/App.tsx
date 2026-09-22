@@ -103,7 +103,7 @@ const router = createBrowserRouter([
               {
                 path: PATHS.handoverCode,
                 handle: { title: 'Handover code — FoodLoop' },
-                lazy: async () => ({ Component: (await import('../pages/handover/HandoverPass')).HandoverPass }),
+                lazy: async () => ({ Component: (await import('../pages/handover/HandoverPass')).HandoverCodeGone }),
               },
             ],
           },

@@ -1,7 +1,8 @@
 // UI presentation for claims, courier tasks and handovers: labels, tones, groupings.
-// Nothing here decides lifecycle — it only reads what the (mock) API already says.
-import type { Claim, ClaimEvent, ClaimStatus } from '../../types/claim'
-import type { CourierNextStep, HandoverCode, HandoverType } from '../../types/handover'
+// Nothing here decides lifecycle: it only arranges what the API already says (status, server timeline, nextStep).
+import type { TimelineEvent, TimelineKind } from '../../lib/api/claims'
+import type { CourierNextStep, HandoverType } from '../../lib/api/courier'
+import type { ClaimStatus } from '../../types/claim'
 import type { StatusTone } from '../ui/StatusChip'
 
 export type ClaimPhase = 'active' | 'done' | 'ended'
@@ -17,41 +18,40 @@ export const CLAIM_STATUS_META: Record<ClaimStatus, { label: string; tone: Statu
   Failed: { label: 'Failed', tone: 'danger', phase: 'ended' },
 }
 
-/** Timeline copy for each recorded transition. */
-export const EVENT_LABELS: Record<ClaimStatus, string> = {
-  Booked: 'Claim booked',
-  PickupPending: 'Courier assigned — pickup pending',
-  PickedUp: 'Picked up from the donor',
-  InTransit: 'In transit',
-  Delivered: 'Delivered',
-  Closed: 'Claim closed',
-  Cancelled: 'Claim cancelled',
-  Failed: 'Handover failed',
+/** Tone family for a server timeline event (the event's own label is the server's). */
+export const TIMELINE_PHASE: Record<TimelineKind, ClaimPhase> = {
+  Claimed: 'active',
+  CourierAssigned: 'active',
+  CourierReassigned: 'active',
+  PickupVerified: 'active',
+  DeliveryVerified: 'done',
+  Closed: 'done',
+  Cancelled: 'ended',
 }
 
-/** The journey stages, in order. Terminal outcomes (Cancelled / Failed) are not stages. */
-export const JOURNEY_STAGES: { status: ClaimStatus; label: string }[] = [
-  { status: 'Booked', label: 'Claimed' },
-  { status: 'PickupPending', label: 'Courier assigned' },
-  { status: 'PickedUp', label: 'Picked up' },
-  { status: 'InTransit', label: 'In transit' },
-  { status: 'Delivered', label: 'Delivered' },
-  { status: 'Closed', label: 'Closed' },
+/** The journey stages, in order, each reached only by the server timeline events listed. Cancelled is an ending, not a stage. */
+export const JOURNEY_STAGES: { id: string; label: string; kinds: TimelineKind[] }[] = [
+  { id: 'claimed', label: 'Claimed', kinds: ['Claimed'] },
+  { id: 'courier', label: 'Courier assigned', kinds: ['CourierAssigned', 'CourierReassigned'] },
+  { id: 'pickup', label: 'Picked up', kinds: ['PickupVerified'] },
+  { id: 'delivery', label: 'Delivered', kinds: ['DeliveryVerified'] },
+  { id: 'closed', label: 'Closed', kinds: ['Closed'] },
 ]
 
-export type StageView = { status: ClaimStatus; label: string; event?: ClaimEvent; state: 'reached' | 'current' | 'future' }
+export type StageView = { id: string; label: string; event?: TimelineEvent; state: 'reached' | 'current' | 'future' }
 
 /**
- * Journey read straight from recorded events: a stage is reached only if its event exists.
- * The latest reached stage is "current" unless the claim ended (then `terminal` carries the ending).
+ * Journey read straight from the server timeline: a stage is reached only if one of its events exists.
+ * The latest reached stage is "current" unless the claim was cancelled (then `terminal` carries that event).
  */
-export function journeyOf(claim: Pick<Claim, 'events'>) {
-  const terminal = claim.events.find((e) => e.type === 'Cancelled' || e.type === 'Failed')
-  const byType = new Map(claim.events.map((e) => [e.type, e]))
-  const lastReached = JOURNEY_STAGES.reduce((acc, s, i) => (byType.has(s.status) ? i : acc), -1)
+export function journeyOf(timeline: TimelineEvent[]) {
+  const terminal = timeline.find((e) => e.kind === 'Cancelled')
+  const eventOf = (kinds: TimelineKind[]) => timeline.findLast((e) => kinds.includes(e.kind))
+  const lastReached = JOURNEY_STAGES.reduce((acc, s, i) => (eventOf(s.kinds) ? i : acc), -1)
   const stages: StageView[] = JOURNEY_STAGES.map((s, i) => ({
-    ...s,
-    event: byType.get(s.status),
+    id: s.id,
+    label: s.label,
+    event: eventOf(s.kinds),
     state: i < lastReached || (i === lastReached && terminal) ? 'reached' : i === lastReached ? 'current' : 'future',
   }))
   return { stages, lastReached, terminal }
@@ -65,44 +65,28 @@ export const TASK_LANES: { id: TaskLane; label: string }[] = [
   { id: 'done', label: 'Completed' },
 ]
 
-export const NEXT_STEP_META: Record<
-  CourierNextStep,
-  { label: string; detail: string; lane: TaskLane; verify?: HandoverType; action?: string }
-> = {
-  CollectPickupCode: {
-    label: 'Collect pickup handover code',
-    detail: 'Ask the donor to show their pickup handover code, then enter it to verify the pickup.',
-    lane: 'collect',
-    verify: 'Pickup',
-    action: 'Enter pickup code',
-  },
+/** Copy for the backend's nextStep. The server decides the step; this only words it. */
+export const NEXT_STEP_META: Record<CourierNextStep, { label: string; detail: string; lane: TaskLane; verify?: HandoverType; action?: string }> = {
   VerifyPickup: {
     label: 'Verify pickup',
-    detail: 'You have the donor’s pickup code. Enter it to record the pickup handover.',
+    detail: 'At the donor, ask for their pickup handover code and enter it to record the pickup.',
     lane: 'collect',
     verify: 'Pickup',
     action: 'Verify pickup',
   },
-  ProceedToBeneficiary: {
-    label: 'Proceed to beneficiary',
-    detail: 'Pickup is verified. Take the donation to the beneficiary and ask for their delivery code on arrival.',
-    lane: 'deliver',
-    verify: 'Delivery',
-    action: 'Verify delivery on arrival',
-  },
   VerifyDelivery: {
     label: 'Verify delivery',
-    detail: 'Ask the beneficiary to show their delivery handover code, then enter it to record the delivery.',
+    detail: 'Pickup is verified. At the beneficiary, ask for their delivery handover code and enter it to record the delivery.',
     lane: 'deliver',
     verify: 'Delivery',
     action: 'Verify delivery',
   },
   Completed: { label: 'Completed', detail: 'Both handovers are verified. Nothing left to do on this task.', lane: 'done' },
+  None: { label: 'No action required', detail: 'This task needs nothing from you right now.', lane: 'done' },
 }
 
-/** Where the courier stands on the route, read from the claim status. 0 at donor · 1 on the road · 2 at beneficiary. */
-export const routeLegOf = (status: ClaimStatus) =>
-  status === 'Delivered' || status === 'Closed' ? 2 : status === 'PickedUp' || status === 'InTransit' ? 1 : 0
+/** Where the courier stands on the route, from the server's nextStep. 0 at donor · 1 on the road · 2 at beneficiary. */
+export const routeLegOf = (step: CourierNextStep) => (step === 'Completed' ? 2 : step === 'VerifyDelivery' ? 1 : 0)
 
 /** Who presents a code, and when. */
 export const HANDOVER_SHOWN_BY: Record<HandoverType, string> = {
@@ -110,12 +94,5 @@ export const HANDOVER_SHOWN_BY: Record<HandoverType, string> = {
   Delivery: 'Show this code to the courier when they deliver the donation.',
 }
 
-export type CodeState = 'Active' | 'Used' | 'Expired'
-/** Display state from recorded fields: a used code stays used; otherwise its window decides. */
-export const codeStateOf = (c: Pick<HandoverCode, 'usedAt' | 'expiresAt'>, now = Date.now()): CodeState =>
-  c.usedAt ? 'Used' : new Date(c.expiresAt).getTime() <= now ? 'Expired' : 'Active'
-
-export const CODE_STATE_TONE: Record<CodeState, StatusTone> = { Active: 'success', Used: 'complete', Expired: 'neutral' }
-
-/** "#C-3104" style reference for display. */
-export const refOf = (id: string) => `#${id.toUpperCase()}`
+/** "#3F2A9C1D" style short reference for display. */
+export const refOf = (id: string) => `#${id.slice(0, 8).toUpperCase()}`

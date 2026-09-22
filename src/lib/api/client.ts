@@ -9,16 +9,22 @@ export class ApiError extends Error {
   readonly title: string
   /** Field validation messages keyed by camelCase field name. */
   readonly errors: Record<string, string[]>
+  /** Only set where the backend sends a service's own user-facing rule text (e.g. `donation.invalid`). */
+  readonly detail?: string
 
-  constructor(status: number, code: string, title: string, errors: Record<string, string[]> = {}) {
+  constructor(status: number, code: string, title: string, errors: Record<string, string[]> = {}, detail?: string) {
     super(title)
     this.name = 'ApiError'
     this.status = status
     this.code = code
     this.title = title
     this.errors = errors
+    this.detail = detail
   }
 }
+
+/** The stable code of a failure ('' for anything that isn't an ApiError). UI copy branches on this. */
+export const codeOf = (error: unknown) => (error instanceof ApiError ? error.code : '')
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
 type Options = { body?: unknown; signal?: AbortSignal }
@@ -93,10 +99,16 @@ async function send<T>(method: Method, path: string, { body, signal }: Options =
     sessionExpired?.()
   }
 
-  const problem = (data ?? {}) as { code?: unknown; title?: unknown; errors?: unknown }
+  const problem = (data ?? {}) as { code?: unknown; title?: unknown; errors?: unknown; detail?: unknown }
   const code = typeof problem.code === 'string' ? problem.code : 'error'
   if (code === 'antiforgery.invalid') discardAntiforgeryToken() // The next unsafe request fetches a fresh one.
-  throw new ApiError(response.status, code, typeof problem.title === 'string' ? problem.title : response.statusText, fieldErrors(problem.errors))
+  throw new ApiError(
+    response.status,
+    code,
+    typeof problem.title === 'string' ? problem.title : response.statusText,
+    fieldErrors(problem.errors),
+    typeof problem.detail === 'string' ? problem.detail : undefined,
+  )
 }
 
 function fieldErrors(errors: unknown): Record<string, string[]> {

@@ -147,7 +147,7 @@
 }
 
 /* ================================================================ Event timeline */
-.timeline { --when: 5.75rem; display: grid; }
+.timeline { --when: 5.75rem; display: grid; min-width: 0; }
 .timeline__event {
   position: relative;
   display: grid;
@@ -189,7 +189,7 @@
 
 .timeline__when { grid-area: when; display: flex; gap: 0.5rem; align-items: baseline; color: var(--color-text-muted); font-size: var(--text-sm); }
 .timeline__time { color: var(--ink-900); }
-.timeline__body { grid-area: body; display: grid; gap: 0.3rem; margin-top: var(--space-2); }
+.timeline__body { grid-area: body; display: grid; gap: 0.3rem; margin-top: var(--space-2); min-width: 0; }
 .timeline__type { display: flex; align-items: center; gap: var(--space-2); color: var(--forest-700); }
 .timeline__event--ended .timeline__type { color: var(--danger); }
 .timeline__latest {
@@ -200,7 +200,7 @@
   letter-spacing: 0.08em;
 }
 .timeline__label { font-family: var(--font-display); font-size: clamp(1.3rem, 1.15rem + 0.5vw, 1.625rem); line-height: 1.2; letter-spacing: -0.015em; font-weight: 400; }
-.timeline__note { max-width: 38rem; color: var(--ink-700); }
+.timeline__note { max-width: 38rem; min-width: 0; color: var(--ink-700); overflow-wrap: anywhere; }
 .timeline__ago { color: var(--color-text-muted); font-size: var(--text-xs); }
 
 @media (min-width: 768px) {

@@ -1,4 +1,5 @@
-import { ArrowRight, Info } from 'lucide-react'
+import { AlertCircle, ArrowRight, CircleCheck } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PATHS } from '../../app/routes'
 import { BotanicalBranch, BotanicalCorner } from '../../components/brand/Botanical'
@@ -7,31 +8,56 @@ import { MagneticButton } from '../../components/motion/MagneticButton'
 import { RevealGroup, RevealItem } from '../../components/motion/Reveal'
 import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
+import { register, type OrganizationType } from '../../lib/api/auth'
+import { ApiError } from '../../lib/api/client'
 import { AuthLayout } from './AuthLayout'
 import { Field } from '../../components/ui/Field'
-import { rules, useMockSubmit } from './useMockSubmit'
+import { apiErrors, rules, useAuthForm } from './useAuthForm'
 
-const PARTICIPATION = [
-  { value: 'donor', label: 'Donor', text: 'We have surplus food to share.' },
-  { value: 'beneficiary', label: 'Beneficiary', text: 'We receive food for our community.' },
-  { value: 'courier', label: 'Courier', text: 'We move food from pickup to delivery.' },
-] as const
+// Organizations self-register as Donor or Beneficiary only; courier and admin accounts are created by FoodLoop.
+const PARTICIPATION: { value: OrganizationType; label: string; text: string }[] = [
+  { value: 'Donor', label: 'Donor', text: 'We have surplus food to share.' },
+  { value: 'Beneficiary', label: 'Beneficiary', text: 'We receive food for our community.' },
+]
 
-const NEXT_STEPS = ['Tell us about your organization', 'Create your personal account', 'We review and welcome you in']
+const NEXT_STEPS = ['Tell us about your organization', 'Create your sign-in', 'We review and welcome you in']
+
+const get = (data: FormData, key: string) => String(data.get(key) ?? '')
 
 export function Register() {
-  const { errors, status, onSubmit } = useMockSubmit((data) => {
-    const get = (k: string) => String(data.get(k) ?? '')
-    return {
-      orgName: rules.required(get('orgName'), 'Enter your organization’s name.'),
-      role: get('role') ? '' : 'Choose how your organization takes part.',
-      city: rules.required(get('city'), 'Enter the city you operate in.'),
-      fullName: rules.required(get('fullName'), 'Enter your full name.'),
-      email: rules.email(get('email')),
-      password: rules.password(get('password')),
-      terms: get('terms') ? '' : 'Please accept the terms to continue.',
-    }
-  })
+  const [submitted, setSubmitted] = useState(false)
+  const doneRef = useRef<HTMLHeadingElement>(null)
+  const { errors, submitting, onSubmit } = useAuthForm(
+    (data) => ({
+      organizationName: rules.required(get(data, 'organizationName'), 'Enter your organization’s name.'),
+      licenseNumber: rules.required(get(data, 'licenseNumber'), 'Enter your organization’s license number.'),
+      organizationType: get(data, 'organizationType') ? '' : 'Choose how your organization takes part.',
+      email: rules.email(get(data, 'email')),
+      password: rules.password(get(data, 'password')),
+      // Acknowledged in the browser only; it is not sent.
+      terms: get(data, 'terms') ? '' : 'Please accept the terms to continue.',
+    }),
+    async (data) => {
+      try {
+        await register({
+          organizationName: get(data, 'organizationName').trim(),
+          licenseNumber: get(data, 'licenseNumber').trim(),
+          organizationType: get(data, 'organizationType') as OrganizationType,
+          email: get(data, 'email').trim(),
+          password: get(data, 'password'),
+        })
+        // No session: the organization is Pending until an administrator approves it.
+        setSubmitted(true)
+        requestAnimationFrame(() => doneRef.current?.focus())
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 'auth.account_exists')
+          return { email: 'An account with this email already exists. Try logging in instead.' }
+        if (error instanceof ApiError && error.code === 'organization.license_exists')
+          return { licenseNumber: 'An organization with this license number is already registered.' }
+        return apiErrors(error)
+      }
+    },
+  )
 
   return (
     <AuthLayout
@@ -60,140 +86,177 @@ export function Register() {
               ))}
             </ol>
           </div>
-          <p className="t-label auth-panel__tagline">Donors · Beneficiaries · Couriers</p>
+          <p className="t-label auth-panel__tagline">Donors · Beneficiaries</p>
         </>
       }
     >
-      <RevealGroup className="auth-form-wrap auth-form-wrap--wide">
-        <RevealItem>
-          <SectionEyebrow>Create an account</SectionEyebrow>
-        </RevealItem>
-        <RevealItem>
-          <h1 className="auth-title">
-            Bring your organization <em>into the loop.</em>
-          </h1>
-          <p className="auth-lead">Two short parts. It takes a few minutes, and you can finish your profile later.</p>
-        </RevealItem>
-
-        <form className="auth-form" noValidate onSubmit={onSubmit}>
+      {submitted ? (
+        <RevealGroup className="auth-form-wrap">
           <RevealItem>
-            <fieldset className="form-group">
-              <legend className="form-group__legend">
-                <span className="form-group__index">01</span>
-                Organization
-              </legend>
-              <div className="form-group__grid">
-                <Field
-                  id="orgName"
-                  label="Organization name"
-                  autoComplete="organization"
-                  required
-                  error={errors.orgName}
-                  className="span-2"
-                />
-                <fieldset
-                  className={`choice span-2${errors.role ? ' has-error' : ''}`}
-                  aria-describedby={errors.role ? 'role-error' : undefined}
-                >
-                  <legend className="field__label">How do you take part?</legend>
-                  <div className="choice__options">
-                    {PARTICIPATION.map((p) => (
-                      <label key={p.value} className="choice__option">
-                        <input type="radio" name="role" value={p.value} className="choice__input" required />
-                        <span className="choice__card">
-                          <span className="choice__label">{p.label}</span>
-                          <span className="choice__text">{p.text}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  {errors.role && (
-                    <p id="role-error" className="field__error">
-                      {errors.role}
-                    </p>
-                  )}
-                </fieldset>
-                <Field id="city" label="City" autoComplete="address-level2" required error={errors.city} />
-              </div>
-            </fieldset>
+            <SectionEyebrow>Request received</SectionEyebrow>
           </RevealItem>
-
           <RevealItem>
-            <fieldset className="form-group">
-              <legend className="form-group__legend">
-                <span className="form-group__index">02</span>
-                Account
-              </legend>
-              <div className="form-group__grid">
-                <Field id="fullName" label="Full name" autoComplete="name" required error={errors.fullName} />
-                <Field id="email" label="Work email" type="email" autoComplete="email" required error={errors.email} />
-                <Field
-                  id="password"
-                  label="Password"
-                  type="password"
-                  autoComplete="new-password"
-                  hint="At least 8 characters."
-                  required
-                  error={errors.password}
-                  className="span-2"
-                />
-                <div className={`span-2 check-field${errors.terms ? ' has-error' : ''}`}>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      name="terms"
-                      className="check__input"
-                      required
-                      aria-invalid={errors.terms ? true : undefined}
-                      aria-describedby={errors.terms ? 'terms-error' : undefined}
-                    />
-                    <span className="check__box" aria-hidden="true" />
-                    <span>
-                      I agree to the FoodLoop{' '}
-                      <Link to="/terms" className="link-underline">
-                        terms
-                      </Link>{' '}
-                      and{' '}
-                      <Link to="/privacy" className="link-underline">
-                        privacy policy
-                      </Link>
-                      .
-                    </span>
-                  </label>
-                  {errors.terms && (
-                    <p id="terms-error" className="field__error">
-                      {errors.terms}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </fieldset>
-          </RevealItem>
-
-          <RevealItem className="auth-form__submit auth-form__submit--split">
-            <MagneticButton>
-              <Button type="submit" size="lg" loading={status === 'submitting'} iconEnd={<ArrowRight />}>
-                Create account
-              </Button>
-            </MagneticButton>
-            <p className="auth-switch">
-              Already have an account?{' '}
-              <Link to={PATHS.login} className="link-underline">
-                Log in
-              </Link>
+            <h1 ref={doneRef} tabIndex={-1} className="auth-title">
+              Thanks — you’re <em>almost in.</em>
+            </h1>
+            <p className="auth-lead">
+              Your organization is waiting for approval. The FoodLoop team reviews every organization before it can
+              sign in. Once it’s approved, log in with the email and password you just chose.
             </p>
           </RevealItem>
-          <div role="status" className="auth-status-slot">
-            {status === 'done' && (
-              <p className="auth-status">
-                <Info aria-hidden="true" />
-                This is a design prototype — registration isn’t connected yet, and nothing you entered was sent or
-                stored.
+          <RevealItem>
+            <p className="auth-status">
+              <CircleCheck aria-hidden="true" />
+              You won’t be able to log in until the review is complete.
+            </p>
+          </RevealItem>
+          <RevealItem className="auth-form__submit">
+            <Button to={PATHS.login} size="lg" iconEnd={<ArrowRight />}>
+              Go to log in
+            </Button>
+          </RevealItem>
+        </RevealGroup>
+      ) : (
+        <RevealGroup className="auth-form-wrap auth-form-wrap--wide">
+          <RevealItem>
+            <SectionEyebrow>Create an account</SectionEyebrow>
+          </RevealItem>
+          <RevealItem>
+            <h1 className="auth-title">
+              Bring your organization <em>into the loop.</em>
+            </h1>
+            <p className="auth-lead">
+              Two short parts. It takes a few minutes, and our team reviews every organization before it can sign in.
+            </p>
+          </RevealItem>
+
+          <form className="auth-form" noValidate onSubmit={onSubmit}>
+            <RevealItem>
+              <fieldset className="form-group">
+                <legend className="form-group__legend">
+                  <span className="form-group__index">01</span>
+                  Organization
+                </legend>
+                <div className="form-group__grid">
+                  <Field
+                    id="organizationName"
+                    label="Organization name"
+                    autoComplete="organization"
+                    maxLength={200}
+                    required
+                    error={errors.organizationName}
+                  />
+                  <Field id="licenseNumber" label="License number" maxLength={100} required error={errors.licenseNumber} />
+                  <fieldset
+                    className={`choice span-2${errors.organizationType ? ' has-error' : ''}`}
+                    aria-describedby={errors.organizationType ? 'organizationType-error' : undefined}
+                  >
+                    <legend className="field__label">How do you take part?</legend>
+                    <div className="choice__options">
+                      {PARTICIPATION.map((p) => (
+                        <label key={p.value} className="choice__option">
+                          <input type="radio" name="organizationType" value={p.value} className="choice__input" required />
+                          <span className="choice__card">
+                            <span className="choice__label">{p.label}</span>
+                            <span className="choice__text">{p.text}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.organizationType && (
+                      <p id="organizationType-error" className="field__error">
+                        {errors.organizationType}
+                      </p>
+                    )}
+                  </fieldset>
+                </div>
+              </fieldset>
+            </RevealItem>
+
+            <RevealItem>
+              <fieldset className="form-group">
+                <legend className="form-group__legend">
+                  <span className="form-group__index">02</span>
+                  Account
+                </legend>
+                <div className="form-group__grid">
+                  <Field
+                    id="email"
+                    label="Work email"
+                    type="email"
+                    autoComplete="email"
+                    maxLength={256}
+                    required
+                    error={errors.email}
+                    className="span-2"
+                  />
+                  <Field
+                    id="password"
+                    label="Password"
+                    type="password"
+                    autoComplete="new-password"
+                    hint="At least 10 characters, with upper- and lowercase letters, a number and a symbol."
+                    required
+                    error={errors.password}
+                    className="span-2"
+                  />
+                  <div className={`span-2 check-field${errors.terms ? ' has-error' : ''}`}>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        name="terms"
+                        className="check__input"
+                        required
+                        aria-invalid={errors.terms ? true : undefined}
+                        aria-describedby={errors.terms ? 'terms-error' : undefined}
+                      />
+                      <span className="check__box" aria-hidden="true" />
+                      <span>
+                        I agree to the FoodLoop{' '}
+                        <Link to="/terms" className="link-underline">
+                          terms
+                        </Link>{' '}
+                        and{' '}
+                        <Link to="/privacy" className="link-underline">
+                          privacy policy
+                        </Link>
+                        .
+                      </span>
+                    </label>
+                    {errors.terms && (
+                      <p id="terms-error" className="field__error">
+                        {errors.terms}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </fieldset>
+            </RevealItem>
+
+            <RevealItem className="auth-form__submit auth-form__submit--split">
+              <MagneticButton>
+                <Button type="submit" size="lg" loading={submitting} iconEnd={<ArrowRight />}>
+                  Create account
+                </Button>
+              </MagneticButton>
+              <p className="auth-switch">
+                Already have an account?{' '}
+                <Link to={PATHS.login} className="link-underline">
+                  Log in
+                </Link>
               </p>
-            )}
-          </div>
-        </form>
-      </RevealGroup>
+            </RevealItem>
+            <div role="alert" className="auth-status-slot">
+              {errors.form && (
+                <p className="auth-status auth-status--error">
+                  <AlertCircle aria-hidden="true" />
+                  {errors.form}
+                </p>
+              )}
+            </div>
+          </form>
+        </RevealGroup>
+      )}
     </AuthLayout>
   )
 }

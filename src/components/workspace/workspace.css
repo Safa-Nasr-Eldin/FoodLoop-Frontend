@@ -91,7 +91,7 @@
   box-shadow: 0 6px 18px -8px rgb(142 182 155 / 0.7);
 }
 
-/* Profile: presentation only, never a menu. */
+/* Profile: the signed-in account and its logout action. */
 .ws-profile { grid-area: profile; display: flex; align-items: center; gap: var(--space-3); }
 .ws-profile__text { display: none; text-align: right; line-height: 1.25; }
 .ws-profile__name { display: block; font-size: var(--text-sm); font-weight: 650; }
@@ -109,39 +109,31 @@
   font-weight: 500;
   letter-spacing: 0.02em;
 }
-.ws-profile__tag {
-  padding: 0.2rem 0.6rem;
-  border: 1px dashed rgb(218 241 222 / 0.32);
+.ws-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding-inline: 0.85rem;
+  border: 1px solid rgb(218 241 222 / 0.28);
   border-radius: var(--radius-pill);
+  background: transparent;
   color: var(--color-on-dark-muted);
+  font: inherit;
   font-size: var(--text-xs);
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
 }
+.ws-logout:hover { color: var(--color-on-dark); border-color: rgb(218 241 222 / 0.5); }
+.ws-logout:focus-visible { outline-color: var(--color-focus-on-dark); }
+.ws-logout:disabled { opacity: 0.6; cursor: progress; }
+.ws-logout svg { width: 16px; height: 16px; }
 
 /* Role accents: related, not separate systems. Beneficiary leans mint, courier leans deep forest. */
 .ws-header--beneficiary { background: radial-gradient(60% 140% at 12% 0%, rgb(142 182 155 / 0.32), transparent 70%), var(--forest-950); }
 .ws-header--courier { background: radial-gradient(60% 140% at 12% 0%, rgb(22 56 50 / 0.9), transparent 70%), #031617; }
 .ws-header--admin { background: radial-gradient(60% 140% at 12% 0%, rgb(35 83 71 / 0.4), transparent 70%), linear-gradient(100deg, #041a1b, var(--forest-950)); }
-
-/* ================= Sample-role strip (dev affordance, scrolls away) ================= */
-.ws-roles { background: #031617; color: var(--color-on-dark-muted); font-size: var(--text-xs); }
-.ws-roles__inner { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
-.ws-roles__label { font-weight: 600; letter-spacing: 0.06em; }
-.ws-roles__list { display: flex; }
-.ws-roles__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding-inline: 0.7rem;
-  color: var(--color-on-dark-muted);
-  font-weight: 650;
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-}
-.ws-roles__link:hover { color: var(--color-on-dark); }
-.ws-roles__link[aria-current] { color: var(--mint-100); text-decoration: underline; text-underline-offset: 0.35em; }
-.ws-roles__link:focus-visible { outline-color: var(--color-focus-on-dark); }
 
 /* Two-row header on small screens: anchors / focus targets must clear it. */
 .page-shell:has(> .ws-header) { --header-height: 6.5rem; }

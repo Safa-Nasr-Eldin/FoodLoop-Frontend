@@ -1,5 +1,5 @@
-import { ArrowRight, Info } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { AlertCircle, ArrowRight } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { PATHS } from '../../app/routes'
 import { BotanicalBranch, BotanicalCorner } from '../../components/brand/Botanical'
 import { FoodLoopMark } from '../../components/brand/FoodLoopMark'
@@ -9,13 +9,31 @@ import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { AuthLayout } from './AuthLayout'
 import { Field } from '../../components/ui/Field'
-import { rules, useMockSubmit } from './useMockSubmit'
+import { homeOf, useSession } from '../../lib/session/context'
+import { apiErrors, rules, useAuthForm } from './useAuthForm'
 
 export function Login() {
-  const { errors, status, onSubmit } = useMockSubmit((data) => ({
-    email: rules.email(String(data.get('email') ?? '')),
-    password: String(data.get('password') ?? '') ? '' : 'Enter your password.',
-  }))
+  const { login } = useSession()
+  const navigate = useNavigate()
+  const { errors, submitting, onSubmit } = useAuthForm(
+    (data) => ({
+      email: rules.email(String(data.get('email') ?? '')),
+      password: String(data.get('password') ?? '') ? '' : 'Enter your password.',
+    }),
+    async (data) => {
+      try {
+        // The role, and so the landing page, comes from the server's session, never from the form.
+        const session = await login(String(data.get('email')).trim(), String(data.get('password')))
+        navigate(homeOf(session), { replace: true })
+      } catch (error) {
+        // One message for unknown email and wrong password: the API never says which.
+        return apiErrors(error, {
+          401: 'Invalid email or password. Check them and try again.',
+          403: 'This account can’t sign in right now. Contact the FoodLoop team if you think this is a mistake.',
+        })
+      }
+    },
+  )
 
   return (
     <AuthLayout
@@ -69,25 +87,18 @@ export function Login() {
               error={errors.password}
             />
           </RevealItem>
-          <RevealItem className="auth-form__row">
-            <label className="check">
-              <input type="checkbox" name="remember" className="check__input" />
-              <span className="check__box" aria-hidden="true" />
-              Keep me signed in on this device
-            </label>
-          </RevealItem>
           <RevealItem className="auth-form__submit">
             <MagneticButton>
-              <Button type="submit" size="lg" loading={status === 'submitting'} iconEnd={<ArrowRight />}>
+              <Button type="submit" size="lg" loading={submitting} iconEnd={<ArrowRight />}>
                 Log in
               </Button>
             </MagneticButton>
           </RevealItem>
-          <div role="status" className="auth-status-slot">
-            {status === 'done' && (
-              <p className="auth-status">
-                <Info aria-hidden="true" />
-                This is a design prototype — sign-in isn’t connected yet, and nothing you entered was sent or stored.
+          <div role="alert" className="auth-status-slot">
+            {errors.form && (
+              <p className="auth-status auth-status--error">
+                <AlertCircle aria-hidden="true" />
+                {errors.form}
               </p>
             )}
           </div>

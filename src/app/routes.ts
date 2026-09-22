@@ -37,8 +37,8 @@ export const EXPLORE_FOOD_PATH = PATHS.marketplace
 export type WorkspaceRole = 'donor' | 'beneficiary' | 'courier' | 'admin'
 
 /**
- * Signed-in product navigation per sample role. No auth guard yet — every page is open during
- * frontend development; the role only decides which nav and sample profile the shell shows.
+ * Signed-in product navigation per role. The role comes from the real session (GET /api/auth/session);
+ * `home` is where login lands. Marketplace is Beneficiary-only, matching the API.
  */
 export const WORKSPACE_ROLES: { id: WorkspaceRole; label: string; home: string; nav: NavItem[] }[] = [
   {
@@ -46,7 +46,6 @@ export const WORKSPACE_ROLES: { id: WorkspaceRole; label: string; home: string; 
     label: 'Donor',
     home: PATHS.donations,
     nav: [
-      { label: 'Marketplace', to: PATHS.marketplace },
       { label: 'My donations', to: PATHS.donations },
       { label: 'Handover codes', to: PATHS.handoverCodes },
       { label: 'My organization', to: PATHS.organization },
@@ -55,7 +54,7 @@ export const WORKSPACE_ROLES: { id: WorkspaceRole; label: string; home: string; 
   {
     id: 'beneficiary',
     label: 'Beneficiary',
-    home: PATHS.claims,
+    home: PATHS.marketplace,
     nav: [
       { label: 'Marketplace', to: PATHS.marketplace },
       { label: 'My claims', to: PATHS.claims },

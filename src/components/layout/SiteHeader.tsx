@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { EXPLORE_FOOD_PATH, PATHS, PRIMARY_NAV, SECTIONS, type NavItem } from '../../app/routes'
 import { cn } from '../../lib/cn'
+import { homeOf, useSession } from '../../lib/session/context'
 import { duration, ease, spring } from '../../lib/motion'
 import { BotanicalCorner, BotanicalDecoration } from '../brand/Botanical'
 import { FoodLoopWordmark } from '../brand/FoodLoopMark'
@@ -18,6 +19,12 @@ const CENTER_NAV = PRIMARY_NAV.filter((item) => item.to === PATHS.home)
 
 export function SiteHeader() {
   const { pathname } = useLocation()
+  const { state } = useSession()
+  // Signed in: one "Open workspace" action replaces Login / Register.
+  const workspace = state.status === 'authenticated' ? homeOf(state.session) : undefined
+  const sheetNav = workspace
+    ? [...PRIMARY_NAV.filter((i) => i.to !== PATHS.login && i.to !== PATHS.register), { label: 'Open workspace', to: workspace }]
+    : PRIMARY_NAV
   const reduced = useReducedMotion()
   const [hovered, setHovered] = useState<string | null>(null)
   const [inLoop, setInLoop] = useState(false)
@@ -119,26 +126,34 @@ export function SiteHeader() {
         </nav>
 
         <div className="site-header__actions">
-          <Button
-            variant="ghost"
-            size="sm"
-            to={PATHS.login}
-            className="site-header__signin"
-            aria-current={pathname === PATHS.login ? 'page' : undefined}
-          >
-            Login
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            to={PATHS.register}
-            iconEnd={<ArrowUpRight />}
-            className="site-header__cta"
-            aria-current={pathname === PATHS.register ? 'page' : undefined}
-            onClick={close}
-          >
-            Register
-          </Button>
+          {workspace ? (
+            <Button variant="primary" size="sm" to={workspace} iconEnd={<ArrowUpRight />} className="site-header__cta" onClick={close}>
+              Open workspace
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                to={PATHS.login}
+                className="site-header__signin"
+                aria-current={pathname === PATHS.login ? 'page' : undefined}
+              >
+                Login
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                to={PATHS.register}
+                iconEnd={<ArrowUpRight />}
+                className="site-header__cta"
+                aria-current={pathname === PATHS.register ? 'page' : undefined}
+                onClick={close}
+              >
+                Register
+              </Button>
+            </>
+          )}
           <button
             ref={toggleRef}
             type="button"
@@ -176,7 +191,7 @@ export function SiteHeader() {
                 animate="visible"
                 variants={{ visible: { transition: { staggerChildren: 0.05, delayChildren: 0.06 } } }}
               >
-                {PRIMARY_NAV.map((item, i) => (
+                {sheetNav.map((item, i) => (
                   <motion.li
                     key={item.label}
                     variants={{

@@ -218,3 +218,9 @@
   .site-footer__top { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: end; }
   .site-footer__branch { display: block; width: 300px; right: 42%; top: -40px; }
 }
+
+/* Session check before the workspace renders: the brand mark, breathing. */
+.session-loading { display: grid; place-items: center; min-height: 100dvh; background: var(--color-bg); }
+.session-loading__mark { width: 56px; height: 56px; color: var(--forest-800); animation: session-breathe 1.6s ease-in-out infinite; }
+@keyframes session-breathe { 50% { opacity: 0.45; transform: scale(0.94); } }
+@media (prefers-reduced-motion: reduce) { .session-loading__mark { animation: none; } }

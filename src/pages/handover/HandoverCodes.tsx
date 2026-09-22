@@ -6,9 +6,10 @@ import { CODE_STATE_TONE, HANDOVER_SHOWN_BY, codeStateOf } from '../../component
 import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { SAMPLE_PROFILES, useWorkspaceRole } from '../../components/workspace/role'
+import { SAMPLE_ORGANIZATION_IDS, useWorkspaceRole } from '../../components/workspace/role'
 import { getMockHandoverCodes } from '../../data/mock/handover'
 import { cn } from '../../lib/cn'
+import { useSession } from '../../lib/session/context'
 import { describeExpiry } from '../../lib/expiry'
 import { ease } from '../../lib/motion'
 import './handover.css'
@@ -16,8 +17,11 @@ import './handover.css'
 export function HandoverCodes() {
   const reduced = useReducedMotion()
   const role = useWorkspaceRole()
-  const profile = SAMPLE_PROFILES[role]
-  const codes = profile.organizationId ? getMockHandoverCodes(profile.organizationId) : []
+  const { state } = useSession()
+  const organizationName = (state.status === 'authenticated' && state.session.organization?.name) || 'Your organization'
+  // Still mock: codes come from sample data until the handover API slice.
+  const sampleOrganizationId = SAMPLE_ORGANIZATION_IDS[role]
+  const codes = sampleOrganizationId ? getMockHandoverCodes(sampleOrganizationId) : []
   const roleLabel = WORKSPACE_ROLES.find((r) => r.id === role)!.label
 
   return (
@@ -28,7 +32,7 @@ export function HandoverCodes() {
           Handover <em>codes</em>
         </h1>
         <p className="t-lead ws-intro__lead">
-          Codes {profile.organizationName} shows to the courier. Each one confirms a single handover.
+          Codes {organizationName} shows to the courier. Each one confirms a single handover.
         </p>
       </header>
 

@@ -31,7 +31,7 @@ export function AuthLayout({ variant, panel, art, children }: AuthLayoutProps) {
         <BotanicalDecoration>
           <AmbientOrb tone="sage" className="auth-panel__orb" />
           {/* The Home hero's orbit, sweeping through the panel: same world, quieter. */}
-          <svg viewBox="0 0 100 100" className="auth-panel__orbit">
+          <svg viewBox="0 0 100 100" className="auth-panel__orbit" aria-hidden="true" focusable="false">
             <circle cx="50" cy="50" r="49.5" className="auth-panel__orbit-track" />
             <circle cx="50" cy="50" r="49.5" className="auth-panel__orbit-dash" />
             <circle cx="3.5" cy="33" r="1.1" className="auth-panel__orbit-node" />

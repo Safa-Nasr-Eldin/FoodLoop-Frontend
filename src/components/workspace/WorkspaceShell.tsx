@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useMatch } from 'react-router-dom'
 import { PATHS, WORKSPACE_ROLES, type WorkspaceRole } from '../../app/routes'
 import { getMockDonationById } from '../../data/mock/donations'
@@ -63,6 +63,7 @@ function RoleStrip({ role }: { role: WorkspaceRole }) {
 
 function WorkspaceHeader({ role, current: forced }: { role: WorkspaceRole; current?: string }) {
   const { pathname } = useLocation()
+  const navRef = useRef<HTMLElement>(null)
   const nav = WORKSPACE_ROLES.find((r) => r.id === role)!.nav
   // Deepest matching item wins: /admin/organizations/pending is "Pending requests", not "Overview".
   const current =
@@ -76,6 +77,12 @@ function WorkspaceHeader({ role, current: forced }: { role: WorkspaceRole; curre
     .map((w) => w[0])
     .join('')
 
+  // On the admin nav's narrow horizontally-scrolling strip, keep the active item in view on arrival.
+  // A no-op everywhere else, since those navs never overflow their track.
+  useEffect(() => {
+    navRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [current])
+
   return (
     <header className={`ws-header ws-header--${role} on-dark grain`}>
       <div className="container ws-header__bar">
@@ -88,7 +95,7 @@ function WorkspaceHeader({ role, current: forced }: { role: WorkspaceRole; curre
           </span>
         </div>
 
-        <nav className="ws-nav" aria-label="Workspace">
+        <nav ref={navRef} className="ws-nav" aria-label="Workspace">
           <ul role="list" className="ws-nav__list">
             {nav.map((item) => (
               <li key={item.to}>

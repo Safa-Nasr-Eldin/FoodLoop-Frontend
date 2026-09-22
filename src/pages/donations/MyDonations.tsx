@@ -4,13 +4,13 @@ import { useState } from 'react'
 import { PATHS, donationPath, editDonationPath } from '../../app/routes'
 import { BotanicalCorner, BotanicalDecoration } from '../../components/brand/Botanical'
 import { FoodMedia } from '../../components/food/FoodMedia'
-import { CATEGORY_META, STATUS_META, formatQuantity, isEditable, pickupAreaOf, type StatusPhase } from '../../components/food/presentation'
+import { CATEGORY_META, STATUS_META, formatQuantity, pickupAreaOf, type StatusPhase } from '../../components/food/presentation'
 import { MagneticButton } from '../../components/motion/MagneticButton'
 import { RevealGroup, RevealItem } from '../../components/motion/Reveal'
 import { Button } from '../../components/ui/Button'
 import { SectionEyebrow } from '../../components/ui/SectionEyebrow'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { getMockOrganizationDonations } from '../../data/mock/donations'
+import { getDonationEditCapability, getMockOrganizationDonations } from '../../data/mock/donations'
 import { getCurrentMockOrganization } from '../../data/mock/organization'
 import { cn } from '../../lib/cn'
 import { describeExpiry, formatAgo } from '../../lib/expiry'
@@ -166,7 +166,7 @@ export function MyDonations() {
                 <motion.li
                   key={d.id}
                   layout="position"
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={reduced ? false : { opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: -12, transition: { duration: duration.fast } }}
                   transition={{ duration: 0.45, ease: ease.out, delay: Math.min(i, 10) * 0.04 }}
@@ -241,7 +241,7 @@ function Record({ donation: d }: { donation: Donation }) {
         <Button variant="outline" size="sm" to={donationPath(d.id)}>
           View<span className="visually-hidden"> {d.title}</span>
         </Button>
-        {isEditable(d) && (
+        {getDonationEditCapability(d).canEdit && (
           <Button variant="ghost" size="sm" to={editDonationPath(d.id)} iconStart={<Pencil />}>
             Edit<span className="visually-hidden"> {d.title}</span>
           </Button>

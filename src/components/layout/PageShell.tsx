@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Outlet, ScrollRestoration, useLocation, useMatches } from 'react-router-dom'
 import { BARE_PATHS, PAGE_TITLES } from '../../app/routes'
 import { duration, ease } from '../../lib/motion'
@@ -13,6 +13,9 @@ type ShellProps = {
   footer?: ReactNode
 }
 
+// Module scope, not component state: see the comment on the focus effect below.
+let hasRenderedOnce = false
+
 /**
  * Layout route: skip link, sticky header, <main> with the page transition, footer.
  * Transition is enter-only (no exit / wait), so navigation is never delayed.
@@ -21,7 +24,6 @@ type ShellProps = {
 export function PageShell({ header = <SiteHeader />, footer = <SiteFooter /> }: ShellProps) {
   const { pathname, hash } = useLocation()
   const reduced = useReducedMotion()
-  const firstRender = useRef(true)
   const handleTitle = (useMatches().at(-1)?.handle as { title?: string } | undefined)?.title
 
   useEffect(() => {
@@ -30,9 +32,13 @@ export function PageShell({ header = <SiteHeader />, footer = <SiteFooter /> }: 
 
   // After in-app navigation, move focus to <main> so screen readers start at the new page.
   // Hash targets are handled by SectionLink / ScrollRestoration instead.
+  // The "first render" flag lives at module scope (not a ref): the public site and the workspace
+  // are separate top-level routes, each with their own <PageShell>, so crossing between them
+  // unmounts one instance and mounts another. A per-instance ref would look like a fresh first
+  // render every time and skip the focus move; the module-level flag survives that remount.
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false
+    if (!hasRenderedOnce) {
+      hasRenderedOnce = true
       return
     }
     if (!hash) document.getElementById('main')?.focus({ preventScroll: true })

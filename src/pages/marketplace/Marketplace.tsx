@@ -173,7 +173,7 @@ export function Marketplace() {
                   key={d.id}
                   layout="position"
                   className={cn('market-grid__item', i === 0 && results.length > 2 && 'is-feature')}
-                  initial={{ opacity: 0, y: 28 }}
+                  initial={reduced ? false : { opacity: 0, y: 28 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, transition: { duration: duration.fast } }}
                   transition={{ duration: 0.5, ease: ease.out, delay: Math.min(i, 8) * 0.05 }}

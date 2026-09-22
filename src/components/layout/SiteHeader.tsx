@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -18,6 +18,7 @@ const CENTER_NAV = PRIMARY_NAV.filter((item) => item.to === PATHS.home)
 
 export function SiteHeader() {
   const { pathname } = useLocation()
+  const reduced = useReducedMotion()
   const [hovered, setHovered] = useState<string | null>(null)
   const [inLoop, setInLoop] = useState(false)
   const [open, setOpen] = useState(false)
@@ -159,7 +160,7 @@ export function SiteHeader() {
             ref={sheetRef}
             id="mobile-menu"
             className="menu-sheet on-dark grain"
-            initial={{ opacity: 0, y: -16 }}
+            initial={reduced ? false : { opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12, transition: { duration: duration.fast } }}
             transition={{ duration: duration.ui, ease: ease.out }}
@@ -171,7 +172,7 @@ export function SiteHeader() {
               <motion.ul
                 role="list"
                 className="menu-sheet__list"
-                initial="hidden"
+                initial={reduced ? false : 'hidden'}
                 animate="visible"
                 variants={{ visible: { transition: { staggerChildren: 0.05, delayChildren: 0.06 } } }}
               >

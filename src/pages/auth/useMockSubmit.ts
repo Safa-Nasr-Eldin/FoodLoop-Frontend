@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 export type Errors = Record<string, string>
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -16,6 +16,9 @@ export const rules = {
 export function useMockSubmit(validate: (data: FormData) => Errors) {
   const [errors, setErrors] = useState<Errors>({})
   const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle')
+  const timer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => window.clearTimeout(timer.current), [])
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -29,7 +32,8 @@ export function useMockSubmit(validate: (data: FormData) => Errors) {
       return
     }
     setStatus('submitting')
-    window.setTimeout(() => setStatus('done'), 900)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setStatus('done'), 900)
   }
 
   return { errors, status, onSubmit }

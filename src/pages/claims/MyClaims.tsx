@@ -125,7 +125,7 @@ export function MyClaims() {
                 <motion.li
                   key={c.id}
                   layout="position"
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={reduced ? false : { opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, transition: { duration: duration.fast } }}
                   transition={{ duration: 0.45, ease: ease.out, delay: Math.min(i, 10) * 0.05 }}

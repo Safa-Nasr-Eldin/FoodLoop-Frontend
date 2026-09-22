@@ -269,8 +269,8 @@ a.attention__item:hover .attention__arrow { transform: translate(var(--motion-nu
 .activity__time .t-data { color: var(--ink-900); font-family: var(--font-mono); font-size: var(--text-sm); }
 .activity__action { justify-self: start; padding: 0.1rem 0.45rem; border-radius: 4px; background: var(--paper-deep); color: var(--forest-800); font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; overflow-wrap: anywhere; }
 .activity__who { font-weight: 650; }
-.activity__entity { color: var(--color-text-muted); }
-.activity__entity code { color: var(--ink-900); font-family: var(--font-mono); font-size: 0.8125rem; }
+.activity__entity { color: var(--color-text-muted); min-width: 0; }
+.activity__entity code { display: inline-block; max-width: 100%; color: var(--ink-900); font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
 @media (min-width: 768px) {
   .activity__row { grid-template-columns: 5.5rem minmax(13rem, 16rem) minmax(0, 1fr) minmax(0, 1fr); align-items: baseline; }
   .activity__time { grid-row: auto; }

@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { Info, Send } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { BotanicalCorner, BotanicalDecoration } from '../../components/brand/Botanical'
 import { Button } from '../../components/ui/Button'
 import { StatusChip } from '../../components/ui/StatusChip'
@@ -72,10 +72,12 @@ function DispatchRow({ claim: c, index, couriers }: RowProps) {
   const [error, setError] = useState(false)
   const [assigned, setAssigned] = useState<string | null>(null)
   const expiry = describeExpiry(c.expiresAt)
+  const selectRef = useRef<HTMLSelectElement>(null)
 
   function assign() {
     if (!courierId) {
       setError(true)
+      selectRef.current?.focus()
       return
     }
     setError(false)
@@ -127,6 +129,7 @@ function DispatchRow({ claim: c, index, couriers }: RowProps) {
             Courier
           </label>
           <select
+            ref={selectRef}
             id={selectId}
             className="adm-select dop__select"
             value={courierId}
@@ -146,7 +149,7 @@ function DispatchRow({ claim: c, index, couriers }: RowProps) {
             ))}
           </select>
           {error && (
-            <p id={`${selectId}-error`} className="dop__error">
+            <p id={`${selectId}-error`} className="dop__error" role="alert">
               Choose a courier before dispatching this claim.
             </p>
           )}

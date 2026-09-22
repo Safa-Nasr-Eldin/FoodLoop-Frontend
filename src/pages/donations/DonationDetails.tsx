@@ -5,12 +5,12 @@ import { Link, useParams } from 'react-router-dom'
 import { PATHS, editDonationPath } from '../../app/routes'
 import { FoodLoopMark } from '../../components/brand/FoodLoopMark'
 import { FoodMedia } from '../../components/food/FoodMedia'
-import { CATEGORY_META, STATUS_META, formatQuantity, isEditable, pickupAreaOf } from '../../components/food/presentation'
+import { CATEGORY_META, STATUS_META, formatQuantity, pickupAreaOf } from '../../components/food/presentation'
 import { MagneticButton } from '../../components/motion/MagneticButton'
 import { MediaReveal } from '../../components/motion/MediaReveal'
 import { Button } from '../../components/ui/Button'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { getMockDonationById } from '../../data/mock/donations'
+import { getDonationEditCapability, getMockDonationById } from '../../data/mock/donations'
 import { getCurrentMockOrganization } from '../../data/mock/organization'
 import { describeExpiry, expiryPhrase, formatAbsolute, formatAgo } from '../../lib/expiry'
 import { ease } from '../../lib/motion'
@@ -161,7 +161,7 @@ export function DonationDetails() {
                     ? 'Your draft — not visible on the marketplace yet.'
                     : `Your listing · ${status.label.toLowerCase()}.`}
                 </p>
-                {isEditable(d) && (
+                {getDonationEditCapability(d).canEdit && (
                   <Button variant="on-dark" size="lg" to={editDonationPath(d.id)} iconStart={<Pencil />}>
                     Edit donation
                   </Button>

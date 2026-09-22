@@ -108,6 +108,7 @@
   line-height: 1.12;
   letter-spacing: -0.02em;
   font-weight: 420;
+  overflow-wrap: anywhere;
 }
 .food-card__org {
   display: flex;
@@ -116,6 +117,7 @@
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   font-weight: 550;
+  overflow-wrap: anywhere;
 }
 .food-card__org svg { width: 15px; height: 15px; flex-shrink: 0; }
 
@@ -138,7 +140,7 @@
   text-transform: uppercase;
 }
 .food-card__facts dt svg { width: 13px; height: 13px; }
-.food-card__facts dd { margin: 0.1rem 0 0; font-size: var(--text-sm); font-weight: 600; }
+.food-card__facts dd { margin: 0.1rem 0 0; font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; }
 .food-card__fact--wide { grid-column: 1 / -1; }
 .food-card__fact--wide dd { font-weight: 550; color: var(--ink-700); }
 

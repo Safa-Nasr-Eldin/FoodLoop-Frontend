@@ -1,6 +1,7 @@
 // MOCK DATA BOUNDARY — sample donations for frontend development.
 // Pages read donations only through the functions at the bottom; R6 replaces them with API calls.
 // Times are relative to page load so urgency states ("Closes in 2h", "Tomorrow") always have examples.
+import { isEditable } from '../../components/food/presentation'
 import type { Donation } from '../../types/donation'
 import { getCurrentMockOrganization } from './organization'
 
@@ -309,4 +310,16 @@ export function getMockOrganizationDonations(organizationId: string): Donation[]
   return DONATIONS.filter((d) => d.organizationId === organizationId).sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   )
+}
+
+/**
+ * Mock stand-in for the API's edit-authorization capability. Status alone is not authorization —
+ * a route or component must never re-derive "editable" from lifecycle status by itself. This is the
+ * one place that combines ownership (who the sample session belongs to) with lifecycle state, the way
+ * the future ASP.NET Core API will. Consumers treat `canEdit` as an opaque, authoritative input.
+ */
+export function getDonationEditCapability(donation: Donation): { canEdit: boolean; reason?: 'not-owner' | 'status' } {
+  if (donation.organizationId !== getCurrentMockOrganization().id) return { canEdit: false, reason: 'not-owner' }
+  if (!isEditable(donation)) return { canEdit: false, reason: 'status' }
+  return { canEdit: true }
 }

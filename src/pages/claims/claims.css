@@ -135,7 +135,15 @@
   }
   .journey__stop:has(+ :is(.is-reached, .is-current))::before { background: var(--sage-500); }
   .journey__stop:has(+ .is-terminal)::before { background: linear-gradient(90deg, var(--sage-500), #f0b9a6); }
-  .journey__label { min-height: 0; margin-top: var(--space-3); }
+  .journey__label { min-height: 0; margin-top: var(--space-3); overflow-wrap: anywhere; text-wrap: balance; }
+}
+
+/* At this width the stage panel has room to breathe — a little more air between "Courier assigned"
+   and "Picked up" so their labels stop reading as tight neighbours. */
+@container (min-width: 900px) {
+  .journey__track { column-gap: var(--space-3); }
+  .journey__label { font-size: 0.9375rem; }
+  .journey__time { font-size: 0.7rem; }
 }
 
 /* ================================================================ Event timeline */
@@ -319,10 +327,10 @@
 .claim-row__ref { grid-area: ref; display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; color: var(--color-text-muted); font-size: var(--text-xs); }
 .claim-row__ref .t-data { color: var(--forest-700); font-size: var(--text-sm); letter-spacing: 0.04em; }
 .claim-row__main { grid-area: main; display: grid; gap: 0.3rem; }
-.claim-row__title { font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.875rem); line-height: 1.1; letter-spacing: -0.02em; font-weight: 400; }
+.claim-row__title { font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.875rem); line-height: 1.1; letter-spacing: -0.02em; font-weight: 400; overflow-wrap: anywhere; }
 .claim-row--done .claim-row__title,
 .claim-row--ended .claim-row__title { color: var(--ink-700); }
-.claim-row__org { color: var(--color-text-muted); font-size: var(--text-sm); }
+.claim-row__org { color: var(--color-text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
 .claim-row__org strong { color: var(--ink-900); font-weight: 650; }
 .claim-row__facts { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); margin-top: var(--space-2); }
 .claim-row__facts dt { color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -354,11 +362,11 @@
   .claim__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(2.5rem, 1rem + 3vw, 4.5rem); }
 }
 
-.claim__identity { display: grid; gap: var(--space-4); }
+.claim__identity { display: grid; gap: var(--space-4); min-width: 0; }
 .claim__kicker { color: var(--color-text-muted); }
 .claim__kicker .t-data { color: var(--forest-700); letter-spacing: 0.06em; }
-.claim__title { font-size: clamp(2.5rem, 1.5rem + 3.4vw, 4.5rem); line-height: 0.98; letter-spacing: -0.04em; font-weight: 340; }
-.claim__org { display: flex; align-items: center; gap: 0.55rem; color: var(--ink-700); }
+.claim__title { font-size: clamp(2.5rem, 1.5rem + 3.4vw, 4.5rem); line-height: 0.98; letter-spacing: -0.04em; font-weight: 340; overflow-wrap: anywhere; }
+.claim__org { display: flex; align-items: center; gap: 0.55rem; color: var(--ink-700); overflow-wrap: anywhere; }
 .claim__org svg { width: 18px; height: 18px; color: var(--forest-700); flex-shrink: 0; }
 .claim__status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .claim__updated { color: var(--color-text-muted); font-size: var(--text-sm); }
@@ -368,11 +376,11 @@
 .claim__summary > div:not(.is-wide):nth-child(odd) { padding-right: var(--space-4); }
 .claim__summary .is-wide { grid-column: 1 / -1; }
 .claim__summary dt { color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; }
-.claim__summary dd { margin: 0.3rem 0 0; font-weight: 600; line-height: 1.4; }
+.claim__summary dd { margin: 0.3rem 0 0; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 .claim__expiry-rel { display: block; font-family: var(--font-display); font-size: 1.375rem; font-weight: 400; letter-spacing: -0.02em; }
 .claim__summary dd time { display: block; }
 .claim__summary .claim__expiry-rel + time { color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 500; }
-.claim__address { display: flex; align-items: center; gap: 0.5rem; }
+.claim__address { display: flex; align-items: center; gap: 0.5rem; overflow-wrap: anywhere; }
 .claim__address svg { width: 18px; height: 18px; color: var(--forest-700); flex-shrink: 0; }
 
 .claim__actions { display: grid; justify-items: start; gap: var(--space-3); margin-top: var(--space-2); }

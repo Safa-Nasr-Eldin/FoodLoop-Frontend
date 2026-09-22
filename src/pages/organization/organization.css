@@ -1,3 +1,4 @@
+.org-preview-notice { margin-bottom: var(--space-5); }
 .org__grid { display: grid; gap: var(--space-7); align-items: start; }
 @media (min-width: 1024px) {
   .org__grid { grid-template-columns: minmax(0, 4.3fr) minmax(0, 7.7fr); gap: clamp(3rem, 1rem + 4vw, 6rem); }
@@ -40,8 +41,8 @@
   letter-spacing: -0.03em;
 }
 .org-id__eyebrow { color: var(--sage-500); }
-.org-id__name { font-size: clamp(2.4rem, 1.7rem + 2.2vw, 3.75rem); line-height: 1; letter-spacing: -0.035em; font-weight: 340; }
-.org-id__type { color: var(--color-on-dark-muted); font-size: 1.0625rem; }
+.org-id__name { max-width: 100%; font-size: clamp(2.4rem, 1.7rem + 2.2vw, 3.75rem); line-height: 1; letter-spacing: -0.035em; font-weight: 340; overflow-wrap: anywhere; }
+.org-id__type { color: var(--color-on-dark-muted); font-size: 1.0625rem; overflow-wrap: anywhere; }
 .org-id__status { margin-top: var(--space-2); }
 
 .org-id__facts {
@@ -140,6 +141,7 @@
   border-radius: 14px 4px 14px 4px;
   background: var(--paper-deep);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .org-record__mono { letter-spacing: 0.06em; }
 .org-record__lock { width: 15px; height: 15px; flex-shrink: 0; color: var(--stone-500); }

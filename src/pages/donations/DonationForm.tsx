@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Info } from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { PATHS, donationPath } from '../../app/routes'
 import { DonationCard } from '../../components/food/DonationCard'
@@ -86,6 +86,9 @@ export function DonationForm(props: DonationFormProps) {
   const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle')
   const [minExpiry] = useState(() => toLocalInput(new Date().toISOString()))
   const formRef = useRef<HTMLFormElement>(null)
+  const timer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => window.clearTimeout(timer.current), [])
 
   const complete = validate(values)
   const sectionDone = (keys: Key[]) => keys.every((k) => !complete[k])
@@ -113,7 +116,8 @@ export function DonationForm(props: DonationFormProps) {
       return
     }
     setStatus('submitting')
-    window.setTimeout(() => setStatus('done'), 800)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setStatus('done'), 800)
   }
 
   // Live preview: the same card the marketplace renders, fed by the form state.

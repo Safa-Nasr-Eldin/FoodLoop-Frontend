@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { Ban, BadgeCheck, Clock, Globe, Lock, Mail, MapPin, Phone, ShieldAlert, UserRound, type LucideIcon } from 'lucide-react'
+import { Ban, BadgeCheck, Clock, FlaskConical, Globe, Lock, Mail, MapPin, Phone, ShieldAlert, UserRound, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BotanicalBranch, BotanicalCorner, BotanicalDecoration } from '../../components/brand/Botanical'
@@ -59,6 +59,7 @@ export function MyOrganization() {
   // Design review only: /organization?status=Pending previews the other presentations. Not a control.
   const [params] = useSearchParams()
   const previewStatus = params.get('status')
+  const isPreview = ORGANIZATION_STATUSES.includes(previewStatus as OrganizationStatus) && previewStatus !== base.status
   const status = ORGANIZATION_STATUSES.find((s) => s === previewStatus) ?? base.status
   const org = { ...base, status }
   const view = STATUS_VIEW[status]
@@ -83,6 +84,13 @@ export function MyOrganization() {
 
   return (
     <div className="container ws-page org">
+      {isPreview && (
+        <p className="ws-notice ws-notice--warning org-preview-notice" role="status">
+          <FlaskConical aria-hidden="true" />
+          Design preview — showing the <strong>{status}</strong> presentation via <code>?status=</code>. This is not
+          {base.name}’s actual account status.
+        </p>
+      )}
       <div className="org__grid">
         {/* ---- Identity ---- */}
         <motion.section className="org-id on-dark grain" aria-labelledby="org-name" {...enter(0)}>

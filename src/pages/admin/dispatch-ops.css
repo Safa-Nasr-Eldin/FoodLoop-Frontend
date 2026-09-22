@@ -23,9 +23,10 @@
   padding: clamp(1.25rem, 1rem + 1vw, 1.75rem) clamp(1.25rem, 1rem + 1vw, 1.75rem) var(--space-4);
   border-bottom: 1px dashed var(--color-border-strong);
 }
+.dop__head > div:first-child { min-width: 0; }
 .dop__kicker { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
 .dop__ref { color: var(--forest-700); font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.04em; }
-.dop__title { font-size: clamp(1.5rem, 1.25rem + 1vw, 2rem); line-height: 1.1; letter-spacing: -0.02em; font-weight: 400; }
+.dop__title { font-size: clamp(1.5rem, 1.25rem + 1vw, 2rem); line-height: 1.1; letter-spacing: -0.02em; font-weight: 400; overflow-wrap: anywhere; }
 .dop__qty { margin-top: 0.25rem; color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 650; }
 
 .dop__expiry { display: grid; justify-items: end; gap: 0.15rem; text-align: right; }

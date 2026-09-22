@@ -1,4 +1,4 @@
-// Information architecture (R2 public site + R3/R4 workspace). `section` targets an id on the Home page (see SectionLink).
+// Information architecture (R2 public site + R3–R5 workspace). `section` targets an id on the Home page (see SectionLink).
 
 export const PATHS = {
   home: '/',
@@ -18,6 +18,11 @@ export const PATHS = {
   verifyHandover: '/courier/tasks/:id/verify',
   handoverCodes: '/handover/codes',
   handoverCode: '/handover/codes/:id',
+  admin: '/admin',
+  adminOrganizations: '/admin/organizations',
+  adminPending: '/admin/organizations/pending',
+  adminCourier: '/admin/courier',
+  adminAudit: '/admin/audit',
 } as const
 
 export const donationPath = (id: string) => `/donations/${id}`
@@ -29,7 +34,7 @@ export const handoverCodePath = (id: string) => `/handover/codes/${id}`
 
 export const EXPLORE_FOOD_PATH = PATHS.marketplace
 
-export type WorkspaceRole = 'donor' | 'beneficiary' | 'courier'
+export type WorkspaceRole = 'donor' | 'beneficiary' | 'courier' | 'admin'
 
 /**
  * Signed-in product navigation per sample role. No auth guard yet — every page is open during
@@ -58,6 +63,18 @@ export const WORKSPACE_ROLES: { id: WorkspaceRole; label: string; home: string; 
     ],
   },
   { id: 'courier', label: 'Courier', home: PATHS.courierTasks, nav: [{ label: 'My tasks', to: PATHS.courierTasks }] },
+  {
+    id: 'admin',
+    label: 'Admin',
+    home: PATHS.admin,
+    nav: [
+      { label: 'Overview', to: PATHS.admin },
+      { label: 'Organizations', to: PATHS.adminOrganizations },
+      { label: 'Pending requests', to: PATHS.adminPending },
+      { label: 'Assign courier', to: PATHS.adminCourier },
+      { label: 'Audit log', to: PATHS.adminAudit },
+    ],
+  },
 ]
 
 export const SECTIONS = {

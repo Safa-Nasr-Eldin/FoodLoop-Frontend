@@ -11,18 +11,9 @@ import { getCurrentMockOrganization } from '../../data/mock/organization'
 import { cn } from '../../lib/cn'
 import { ease } from '../../lib/motion'
 import { FOOD_CATEGORIES } from '../../types/donation'
-import { ORGANIZATION_STATUSES, type OrganizationStatus, type OrganizationType } from '../../types/organization'
+import { ORGANIZATION_STATUSES, ORGANIZATION_TYPE_LABELS, type OrganizationStatus } from '../../types/organization'
 import './organization.css'
 
-const TYPE_LABEL: Record<OrganizationType, string> = {
-  Restaurant: 'Restaurant',
-  Bakery: 'Bakery',
-  Grocery: 'Grocery',
-  Caterer: 'Caterer',
-  Farm: 'Farm',
-  FoodBank: 'Food bank',
-  CommunityKitchen: 'Community kitchen',
-}
 
 type StatusView = { tone: StatusTone; icon: LucideIcon; title: string; body: string; steps: ('done' | 'current' | 'stopped' | 'todo')[] }
 
@@ -108,7 +99,7 @@ export function MyOrganization() {
             {org.name}
           </h1>
           <p className="org-id__type">
-            {TYPE_LABEL[org.type]} · {org.city}
+            {ORGANIZATION_TYPE_LABELS[org.type]} · {org.city}
           </p>
           <div className="org-id__status">
             <StatusChip tone={view.tone} icon={<StatusIcon />}>
@@ -168,7 +159,7 @@ export function MyOrganization() {
             <dl className="org-record">
               <ReadOnly label="Food business licence" value={org.licenseNumber} mono />
               <ReadOnly label="Company registration" value={org.registrationNumber} mono />
-              <ReadOnly label="Organization type" value={TYPE_LABEL[org.type]} />
+              <ReadOnly label="Organization type" value={ORGANIZATION_TYPE_LABELS[org.type]} />
               <ReadOnly label="Account status" value={status} />
             </dl>
           </motion.section>

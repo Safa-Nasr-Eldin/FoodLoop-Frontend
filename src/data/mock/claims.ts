@@ -199,3 +199,8 @@ export function getMockClaims(): Claim[] {
 export function getMockClaimById(id: string): Claim | undefined {
   return CLAIMS.find((c) => c.id === id)
 }
+
+/** Every claim across the network (admin views). */
+export function getMockAllClaims(): Claim[] {
+  return CLAIMS
+}

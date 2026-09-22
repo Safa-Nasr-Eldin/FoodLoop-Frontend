@@ -20,11 +20,11 @@ export function WorkspaceShell() {
   const foreignListing = !!listing && listing.organizationId !== getCurrentMockOrganization().id
 
   // Role-specific pages set the sample role; shared pages (marketplace, handover codes) keep the last one.
-  // Couriers have no shared pages, so a shared page seen "as courier" falls back to the beneficiary view.
+  // Couriers and admins have no shared pages, so those fall back to the beneficiary view.
   const own = foreignListing ? undefined : roleOfPath(pathname)
   const [last, setLast] = useState<WorkspaceRole>(own ?? 'beneficiary')
   if (own && own !== last) setLast(own)
-  const role = own ?? (last === 'courier' ? 'beneficiary' : last)
+  const role = own ?? (last === 'courier' || last === 'admin' ? 'beneficiary' : last)
 
   return (
     <WorkspaceRoleContext.Provider value={role}>
@@ -64,7 +64,12 @@ function RoleStrip({ role }: { role: WorkspaceRole }) {
 function WorkspaceHeader({ role, current: forced }: { role: WorkspaceRole; current?: string }) {
   const { pathname } = useLocation()
   const nav = WORKSPACE_ROLES.find((r) => r.id === role)!.nav
-  const current = forced ?? nav.find((i) => pathname.startsWith(i.to))?.to
+  // Deepest matching item wins: /admin/organizations/pending is "Pending requests", not "Overview".
+  const current =
+    forced ??
+    nav
+      .filter((i) => pathname === i.to || pathname.startsWith(`${i.to}/`))
+      .reduce<string | undefined>((best, i) => (i.to.length > (best?.length ?? 0) ? i.to : best), undefined)
   const profile = SAMPLE_PROFILES[role]
   const initials = profile.person
     .split(' ')

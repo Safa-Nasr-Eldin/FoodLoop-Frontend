@@ -5,6 +5,16 @@ export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number]
 
 export type OrganizationType = 'Restaurant' | 'Bakery' | 'Grocery' | 'Caterer' | 'Farm' | 'FoodBank' | 'CommunityKitchen'
 
+export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
+  Restaurant: 'Restaurant',
+  Bakery: 'Bakery',
+  Grocery: 'Grocery',
+  Caterer: 'Caterer',
+  Farm: 'Farm',
+  FoodBank: 'Food bank',
+  CommunityKitchen: 'Community kitchen',
+}
+
 export type Organization = {
   id: string
   name: string

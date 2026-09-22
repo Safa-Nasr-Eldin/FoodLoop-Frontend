@@ -12,10 +12,12 @@ export const SAMPLE_PROFILES: Record<WorkspaceRole, { person: string; organizati
   },
   beneficiary: { person: 'Grace Mensah', organizationId: SAMPLE_BENEFICIARY.id, organizationName: SAMPLE_BENEFICIARY.name },
   courier: { person: 'Daniel Price', organizationName: 'Volunteer courier' },
+  admin: { person: 'Nadia Karimi', organizationName: 'FoodLoop operations' },
 }
 
 /** Role a page belongs to on its own; shared pages (marketplace, handover codes) return undefined. */
 export function roleOfPath(pathname: string): WorkspaceRole | undefined {
+  if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/courier')) return 'courier'
   if (pathname.startsWith('/claims')) return 'beneficiary'
   if (pathname.startsWith('/donations') || pathname.startsWith('/organization')) return 'donor'

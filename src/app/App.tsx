@@ -97,6 +97,31 @@ const router = createBrowserRouter([
         handle: { title: 'Handover code — FoodLoop' },
         lazy: async () => ({ Component: (await import('../pages/handover/HandoverPass')).HandoverPass }),
       },
+      {
+        path: PATHS.admin,
+        handle: { title: 'Operations overview — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/admin/AdminDashboard')).AdminDashboard }),
+      },
+      {
+        path: PATHS.adminOrganizations,
+        handle: { title: 'Manage organizations — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/admin/ManageOrganizations')).ManageOrganizations }),
+      },
+      {
+        path: PATHS.adminPending,
+        handle: { title: 'Pending requests — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/admin/PendingRequests')).PendingRequests }),
+      },
+      {
+        path: PATHS.adminCourier,
+        handle: { title: 'Assign courier — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/admin/AssignCourier')).AssignCourier }),
+      },
+      {
+        path: PATHS.adminAudit,
+        handle: { title: 'Audit log — FoodLoop' },
+        lazy: async () => ({ Component: (await import('../pages/admin/AuditLog')).AuditLog }),
+      },
     ],
   },
 ])

@@ -4,6 +4,7 @@ import { routeLegOf } from '../../components/operations/presentation'
 import { cn } from '../../lib/cn'
 import { ease } from '../../lib/motion'
 import type { CourierTask } from '../../types/handover'
+import './route.css'
 
 type Props = {
   task: Pick<CourierTask, 'status' | 'donorOrganizationName' | 'pickupAddress' | 'beneficiaryOrganizationName'>

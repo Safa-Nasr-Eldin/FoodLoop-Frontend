@@ -101,6 +101,7 @@
 /* Role accents: related, not separate systems. Beneficiary leans mint, courier leans deep forest. */
 .ws-header--beneficiary { background: radial-gradient(60% 140% at 12% 0%, rgb(142 182 155 / 0.32), transparent 70%), var(--forest-950); }
 .ws-header--courier { background: radial-gradient(60% 140% at 12% 0%, rgb(22 56 50 / 0.9), transparent 70%), #031617; }
+.ws-header--admin { background: radial-gradient(60% 140% at 12% 0%, rgb(35 83 71 / 0.4), transparent 70%), linear-gradient(100deg, #041a1b, var(--forest-950)); }
 
 /* ================= Sample-role strip (dev affordance, scrolls away) ================= */
 .ws-roles { background: #031617; color: var(--color-on-dark-muted); font-size: var(--text-xs); }
